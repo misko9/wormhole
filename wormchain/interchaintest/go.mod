@@ -8,8 +8,14 @@ require (
 	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845
 	github.com/strangelove-ventures/interchaintest/v7 v7.0.0-20230612175326-b4115f9ca597
 	github.com/stretchr/testify v1.8.4
-	//github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
+	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.24.0
+)
+
+require (
+	github.com/ethereum/go-ethereum v1.11.6
+	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
+	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20230614161948-7f6213019abf
 )
 
 require (
@@ -81,7 +87,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
-	github.com/ethereum/go-ethereum v1.11.6 // indirect
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
@@ -239,5 +244,6 @@ replace (
 	// pin version! 126854af5e6d has issues with the store so that queries fail
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
-	//github.com/wormhole-foundation/wormchain => ../
+	github.com/wormhole-foundation/wormchain => ../
+	github.com/wormhole-foundation/wormchain/sdk => ../sdk
 )

@@ -18,6 +18,7 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/strangelove-ventures/interchaintest/v7/testreporter"
 
+	"github.com/wormhole-foundation/wormhole/wormchain/interchaintest/guardians"
 	//wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 
 	"github.com/stretchr/testify/require"
@@ -66,9 +67,9 @@ func wormchainEncoding() *testutil.TestEncodingConfig {
 	return &cfg
 }
 
-func CreateSingleWormchain(t *testing.T) []ibc.Chain {
+func CreateSingleWormchain(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod)
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
@@ -123,7 +124,7 @@ func BuildInitialChain(t *testing.T, chains []ibc.Chain) context.Context {
 // * Set Guardian Set List using new val set
 // * Set Guardian Validator List using new val set
 // * Allow list the faucet address
-func ModifyGenesis(votingPeriod string, maxDepositPeriod string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guardians.ValSet) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
@@ -162,9 +163,9 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string) func(ibc.ChainC
 		}
 		guardianValidators := []GuardianValidator{}
 		for i := 0; i < numVals; i++ {
-			guardianSet.Keys = append(guardianSet.Keys, validators[i])
+			guardianSet.Keys = append(guardianSet.Keys, guardians.Vals[i].Addr)
 			guardianValidators = append(guardianValidators, GuardianValidator{
-				GuardianKey: validators[i],
+				GuardianKey: guardians.Vals[i].Addr,
 				ValidatorAddr: validators[i],
 			})
 		}
@@ -194,6 +195,7 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string) func(ibc.ChainC
 		return out, nil
 	}
 }
+
 
 func MustAccAddressFromBech32(address string, bech32Prefix string) sdk.AccAddress {
 	if len(strings.TrimSpace(address)) == 0 {

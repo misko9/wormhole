@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 )
 
 func getFullNode(c *cosmos.CosmosChain) *cosmos.ChainNode {

@@ -7,19 +7,18 @@ import (
 	"strings"
 	"testing"
 
-	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
-
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/icza/dyno"
+	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/icza/dyno"
 
-	interchaintest "github.com/strangelove-ventures/interchaintest/v7"
-	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v7/ibc"
-	"github.com/strangelove-ventures/interchaintest/v7/testreporter"
+	interchaintest "github.com/strangelove-ventures/interchaintest/v4"
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos/wasm"
+	"github.com/strangelove-ventures/interchaintest/v4/ibc"
+	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 
-	"github.com/wormhole-foundation/wormhole/wormchain/interchaintest/guardians"
-	//wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -58,13 +57,13 @@ var (
 
 // wormchainEncoding registers the Wormchain specific module codecs so that the associated types and msgs
 // will be supported when writing to the blocksdb sqlite database.
-func wormchainEncoding() *testutil.TestEncodingConfig {
-	cfg := cosmos.DefaultEncoding()
+func wormchainEncoding() *simappparams.EncodingConfig {
+	cfg := wasm.WasmEncoding()
 
 	// register custom types
-	wasmtypes.RegisterInterfaces(cfg.InterfaceRegistry)
+	wormholetypes.RegisterInterfaces(cfg.InterfaceRegistry)
 
-	return &cfg
+	return cfg
 }
 
 func CreateSingleWormchain(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
@@ -187,6 +186,15 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
 		}
 
+		config := wormholetypes.Config{
+			GuardianSetExpiration: 86400,
+			GovernanceEmitter: vaa.GovernanceEmitter[:],
+			GovernanceChain: uint32(vaa.GovernanceChain),
+			ChainId: uint32(vaa.ChainIDWormchain),
+		}
+		if err := dyno.Set(g, config, "app_state", "wormhole", "config"); err != nil {
+			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
+		}
 		out, err := json.Marshal(g)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)

@@ -5,7 +5,7 @@ import (
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	"github.com/wormhole-foundation/wormhole/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 )
 
 var lastestSequence = 1

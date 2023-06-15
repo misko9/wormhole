@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v7"
-	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v7/testutil"
+	"github.com/strangelove-ventures/interchaintest/v4"
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v4/testutil"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wormhole-foundation/wormhole/wormchain/interchaintest/guardians"
-	"github.com/wormhole-foundation/wormhole/wormchain/interchaintest/helpers"
+	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 )
 
 func TestValAddr(t *testing.T) {
@@ -36,7 +36,7 @@ func TestWormchain(t *testing.T) {
 	_ = interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), wormchain)
 	//user := users[0]
 
-	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/core.wasm", guardians)
+	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 //	msg := fmt.Sprintf(`{}`)
@@ -53,7 +53,7 @@ func TestWormchain(t *testing.T) {
 
 
 
-	err := testutil.WaitForBlocks(ctx, 200, wormchain)
+	err := testutil.WaitForBlocks(ctx, 2, wormchain)
 	require.NoError(t, err)
 }
 

@@ -1,23 +1,25 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"compress/gzip"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v7/testutil"
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v4/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/crypto/sha3"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
-	"github.com/wormhole-foundation/wormhole/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 )
 
 func createWasmStoreCodePayload(wasmBytes []byte) []byte {
@@ -33,7 +35,7 @@ func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 
 // wormchaind tx wormhole store [wasm file] [vaa-hex] [flags]
 func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, fileLoc string, guardians *guardians.ValSet) (codeId string) {
-	node := getFullNode(chain)
+	node := chain.GetFullNode()
 
 	_, file := filepath.Split(fileLoc)
 	err := node.CopyFile(ctx, fileLoc, file)
@@ -42,6 +44,12 @@ func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain,
 	content, err := os.ReadFile(fileLoc)
 	require.NoError(t, err)
 
+	// gzip the wasm file
+	if IsWasm(content) {
+		content, err = GzipIt(content)
+		require.NoError(t, err)
+	}
+
 	payload := createWasmStoreCodePayload(content)
 	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, err := v.Marshal()
@@ -49,9 +57,8 @@ func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain,
 
 	vHex := hex.EncodeToString(vBz)
 
-	stdout, err := node.ExecTx(ctx, keyName, "wormhole", "store", path.Join(node.HomeDir(), file), vHex, "--gas", "auto")
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "store", path.Join(node.HomeDir(), file), vHex, "--gas", "auto")
 	require.NoError(t, err)
-	fmt.Println("Store code stdout: ", stdout)
 
 	err = testutil.WaitForBlocks(ctx, 2, node.Chain)
 	require.NoError(t, err)
@@ -64,6 +71,29 @@ func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain,
 	require.NoError(t, err)
 
 	return res.CodeInfos[0].CodeID
+}
+
+// IsWasm checks if the file contents are of wasm binary
+func IsWasm(input []byte) bool {
+	wasmIdent := []byte("\x00\x61\x73\x6D")
+	return bytes.Equal(input[:4], wasmIdent)
+}
+
+// GzipIt compresses the input ([]byte)
+func GzipIt(input []byte) ([]byte, error) {
+	// Create gzip writer.
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	_, err := w.Write(input)
+	if err != nil {
+		return nil, err
+	}
+	err = w.Close() // You must close this first to flush the bytes to the buffer.
+	if err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }
 
 type CodeInfo struct {

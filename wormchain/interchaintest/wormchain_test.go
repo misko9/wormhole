@@ -1,7 +1,6 @@
 package ictest
 
 import (
-	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -14,13 +13,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 )
 
-func TestValAddr(t *testing.T) {
-	valAddr := MustAccAddressFromBech32("wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr", "wormhole").Bytes()
-	valAddrB64 := base64.RawStdEncoding.EncodeToString(valAddr)
-	fmt.Println("Val: ", valAddrB64)
-}
-
-// TestWormchain runs through a simple set of tests to ensure things are working
+// TestWormchain runs through a simple test case for each deliverable
 func TestWormchain(t *testing.T) {
 	t.Parallel()
 
@@ -38,43 +31,40 @@ func TestWormchain(t *testing.T) {
 
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
+	
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
+	fmt.Println("Core contract address: ", coreContractAddr)
 
-//	msg := fmt.Sprintf(`{}`)
-//	_, contract := helpers.SetupContract(t, ctx, simd, user.KeyName(), "contracts/wormchain.wasm", msg)
-//	t.Log("coreContract", contract)
+	wrappedAssetCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/cw20_wrapped_2.wasm", guardians)
+	fmt.Println("CW20 wrapped_2 code id: ", wrappedAssetCodeId)
 
-//	verifyContractEntryPoints(t, ctx, simd, user, contract)
+	tbContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/token_bridge.wasm", guardians)
+	fmt.Println("Token bridge contract code id: ", tbContractCodeId)
 
-	// Either add fake guardian/validator or figure out how to submit a tx from a val
-	// Add a new allowed account (this will be needed for the relayer) or is this done in genesis??
-	// Store and initialize the core bridge contract (how to initialize?)
-	// Store and initialize the token bridge contract (how to initialize?)
-	// Add a new token
+	tbInstantiateMsg:= helpers.TbContractInstantiateMsg(t, wormchainConfig, coreContractAddr, wrappedAssetCodeId)
+	tbContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", tbContractCodeId, "token_bridge", tbInstantiateMsg, guardians)
+	fmt.Println("Token bridge contract address: ", tbContractAddr)
 
+	// Add a bridged token
+	// Send a bridged token to wormchain using token bridge and deposited to an address
+	// Send a bridged token out of wormchain
 
+	// IBC shim required:
+	// Send a bridged token to wormchain, over ibc to foreign cosmos chain (deposited to addr)
+	// Send a bridged token to wormchain, over ibc to a foreign cosmos chain's contract
+
+	// IBC hooks required:
+	// Send a bridged token from foreign cosmos chain, over ibc to wormchain and out of wormchain (stretch, nice-to-have)
+
+	// PFM required:
+	// Send a bridged token from a foreign cosmos chain, through wormchain, to a second foreign cosmos chain (deposited to addr)
+	// Send a bridged token from a foreign cosmos chain, through wormchain, to a second foreign cosmos chain's contract
+
+	// Out of scope:
+	// Send a cosmos chain native asset to wormchain for external chain consumption
 
 	err := testutil.WaitForBlocks(ctx, 2, wormchain)
 	require.NoError(t, err)
 }
 
-/*func verifyContractEntryPoints(t *testing.T, ctx context.Context, simd *cosmos.CosmosChain, user ibc.Wallet, contract string) {
-	queryMsg := helpers.QueryMsg{Owner: &struct{}{}}
-	var queryRsp helpers.QueryRsp
-	err := simd.QueryContract(ctx, contract, queryMsg, &queryRsp)
-	require.NoError(t, err)
-	require.Equal(t, user.FormattedAddress(), queryRsp.Data.Address)
-
-	randomAddr := "cosmos10qa7yajp3fp869mdegtpap5zg056exja3chkw5"
-	newContractOwnerStruct := helpers.ExecuteMsg{
-		ChangeContractOwner: &helpers.ChangeContractOwner{
-			NewOwner: randomAddr,
-		},
-	}
-	newContractOwner, err := json.Marshal(newContractOwnerStruct)
-	require.NoError(t, err)
-	simd.ExecuteContract(ctx, user.KeyName(), contract, string(newContractOwner))
-
-	err = simd.QueryContract(ctx, contract, queryMsg, &queryRsp)
-	require.NoError(t, err)
-	require.Equal(t, randomAddr, queryRsp.Data.Address)
-}*/

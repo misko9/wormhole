@@ -51,7 +51,7 @@ func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain,
 	}
 
 	payload := createWasmStoreCodePayload(content)
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), payload)
+	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 

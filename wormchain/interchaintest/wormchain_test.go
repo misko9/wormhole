@@ -56,6 +56,18 @@ func TestWormchain(t *testing.T) {
 	_, err := wormchain.ExecuteContract(ctx, "faucet", tbContractAddr, string(tbRegisterChainMsg))
 	require.NoError(t, err)
 
+	name := "Wrapped BTC"
+	symbol := "XBTC"
+	assetAddr := "0xXBTC"
+	assetChainID := uint16(123)
+	
+	tbRegisterForeignAssetMsg := helpers.TbRegisterForeignAsset(t, assetAddr, assetChainID, "123TokenBridge", 6, symbol, name, guardians)
+	_, err = wormchain.ExecuteContract(ctx, "faucet", tbContractAddr, string(tbRegisterForeignAssetMsg))
+	require.NoError(t, err)
+	
+	cw20InstantiateMsg := helpers.Cw20ContractInstantiateMsg(t, name, symbol, assetChainID, assetAddr, 6, tbContractAddr)
+	_ = helpers.InstantiateContract(t, ctx, wormchain, "faucet", wrappedAssetCodeId, symbol, cw20InstantiateMsg, guardians)
+
 	// Send a bridged token to wormchain using token bridge and deposited to an address
 	// Send a bridged token out of wormchain
 

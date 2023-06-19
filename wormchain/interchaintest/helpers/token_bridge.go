@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"strconv"
 	"testing"
@@ -44,12 +46,13 @@ func TbContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, whContract stri
 	return string(msgBz)
 }
 
-type TbExecuteMsg struct {
-	SubmitVaa TbSubmitVaaMsg `json:"submit_vaa,omitempty"`
+type TbSubmitVaaMsg struct {
+	SubmitVaa SubmitVaa `json:"submit_vaa,omitempty"`
 }
 
-type TbSubmitVaaMsg struct {
-	Data []byte `json:"data"`
+
+type SubmitVaa struct {
+	Data []byte `json:"data,omitempty"`
 }
 
 func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardians *guardians.ValSet) []byte {
@@ -66,12 +69,48 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 	}
 
 	payload := bodyTbRegisterChain.Serialize()
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), payload)
+	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 		
-	msg := TbExecuteMsg{
-		SubmitVaa: TbSubmitVaaMsg{
+	msg := TbSubmitVaaMsg{
+		SubmitVaa: SubmitVaa{
+			Data: vBz,
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return msgBz
+}
+
+func TbRegisterForeignAsset(t *testing.T, tokenAddr string, chainID uint16, emitterAddr string, decimals uint8, symbol string, name string, guardians *guardians.ValSet) []byte {
+	payload := new(bytes.Buffer)
+	vaa.MustWrite(payload, binary.BigEndian, uint8(2))
+	tokenAddrPadded := vaa.LeftPadBytes(tokenAddr, 32)
+	payload.Write(tokenAddrPadded.Bytes())
+	vaa.MustWrite(payload, binary.BigEndian, chainID)
+	vaa.MustWrite(payload, binary.BigEndian, decimals)
+	symbolPad := make([]byte, 32)
+	copy(symbolPad, []byte(symbol))
+	payload.Write(symbolPad)
+	namePad := make([]byte, 32)
+	copy(namePad, []byte(name))
+	payload.Write(namePad)
+	
+	emitterBz := [32]byte{}
+	eIndex := 32
+	for i := len(emitterAddr); i > 0; i-- {
+		emitterBz[eIndex-1] = emitterAddr[i-1]
+		eIndex--
+	}
+	v := generateVaa(0, guardians, vaa.ChainID(chainID), vaa.Address(emitterBz), payload.Bytes())
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+		
+	msg := TbSubmitVaaMsg{
+		SubmitVaa: SubmitVaa{
 			Data: vBz,
 		},
 	}

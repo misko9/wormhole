@@ -17,7 +17,7 @@ func signVaa(vaaToSign vaa.VAA, signers *guardians.ValSet) vaa.VAA {
 	return vaaToSign
 }
 
-func generateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.ChainID, payload []byte) vaa.VAA {
+func generateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.ChainID, emitterAddr vaa.Address, payload []byte) vaa.VAA {
 	v := vaa.VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: index,
@@ -26,8 +26,8 @@ func generateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.Chain
 		Nonce:            uint32(1),
 		Sequence:         uint64(lastestSequence),
 		ConsistencyLevel: uint8(32),
-		EmitterChain:     vaa.ChainIDSolana,
-		EmitterAddress:   vaa.Address(vaa.GovernanceEmitter),
+		EmitterChain:     emitterChain,
+		EmitterAddress:   emitterAddr,
 		Payload:          payload,
 	}
 	lastestSequence = lastestSequence + 1

@@ -36,6 +36,11 @@ func TestWormchain(t *testing.T) {
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 
+	/*queryMsg := QueryMsg{GuardianSetInfo: &struct{}{}}
+	var queryRsp QueryRsp
+	err := wormchain.QueryContract(ctx, coreContractAddr, queryMsg, &queryRsp)
+	require.NoError(t, err)*/
+
 	wrappedAssetCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/cw20_wrapped_2.wasm", guardians)
 	fmt.Println("CW20 wrapped_2 code id: ", wrappedAssetCodeId)
 
@@ -47,6 +52,10 @@ func TestWormchain(t *testing.T) {
 	fmt.Println("Token bridge contract address: ", tbContractAddr)
 
 	// Add a bridged token
+	tbRegisterChainMsg := helpers.TbRegisterChainMsg(t, 123, "123TokenBridge", guardians)
+	_, err := wormchain.ExecuteContract(ctx, "faucet", tbContractAddr, string(tbRegisterChainMsg))
+	require.NoError(t, err)
+
 	// Send a bridged token to wormchain using token bridge and deposited to an address
 	// Send a bridged token out of wormchain
 
@@ -64,7 +73,19 @@ func TestWormchain(t *testing.T) {
 	// Out of scope:
 	// Send a cosmos chain native asset to wormchain for external chain consumption
 
-	err := testutil.WaitForBlocks(ctx, 2, wormchain)
+	err = testutil.WaitForBlocks(ctx, 2, wormchain)
 	require.NoError(t, err)
 }
 
+type QueryMsg struct {
+	GuardianSetInfo *struct{} `json:"guardian_set_info,omitempty"`
+}
+
+type QueryRsp struct {
+	Data *QueryRspObj `json:"data,omitempty"`
+}
+
+type QueryRspObj struct {
+	GuardianSetIndex uint32 `json:"guardian_set_index"`
+	Addresses []helpers.GuardianAddress `json:"addresses"`
+}

@@ -12,7 +12,7 @@ require (
 
 require (
 	github.com/ethereum/go-ethereum v1.11.6
-	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230615141826-f13575dee01a
+	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230619000459-5b5ed8115994
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20230614161948-7f6213019abf
 )
@@ -210,6 +210,7 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.14-ics
 	//github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole-2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+
 	// pin version! 126854af5e6d has issues with the store so that queries fail
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// use informal tendermint

@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/stretchr/testify/require"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
+	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 type TbInstantiateMsg struct {
@@ -41,4 +42,42 @@ func TbContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, whContract stri
 	require.NoError(t, err)
 
 	return string(msgBz)
+}
+
+type TbExecuteMsg struct {
+	SubmitVaa TbSubmitVaaMsg `json:"submit_vaa,omitempty"`
+}
+
+type TbSubmitVaaMsg struct {
+	Data []byte `json:"data"`
+}
+
+func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardians *guardians.ValSet) []byte {
+	emitterBz := [32]byte{}
+	eIndex := 32
+	for i := len(emitterAddr); i > 0; i-- {
+		emitterBz[eIndex-1] = emitterAddr[i-1]
+		eIndex--
+	}
+	bodyTbRegisterChain := vaa.BodyTokenBridgeRegisterChain{
+		Module: "TokenBridge",
+		ChainID: vaa.ChainID(chainID),
+		EmitterAddress: vaa.Address(emitterBz),
+	}
+
+	payload := bodyTbRegisterChain.Serialize()
+	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), payload)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+		
+	msg := TbExecuteMsg{
+		SubmitVaa: TbSubmitVaaMsg{
+			Data: vBz,
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return msgBz
 }

@@ -28,6 +28,12 @@ pub enum ExecuteMsg {
     CompleteTransferAndSend { vaa: Binary },
 }
 
+#[cw_serde]
+pub enum GatewayIbcTokenBridgePayload {
+    Simple { chain: u16, recipient: Binary },
+	ContractControlled { chain: u16, contract: Binary, payload: Binary }
+}
+
 /// This is the message we accept via Receive
 #[cw_serde]
 pub struct TransferMsg {

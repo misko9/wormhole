@@ -2,6 +2,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{IbcEndpoint, StdResult, Storage, Uint128};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
+use cw_token_bridge::msg::TransferInfoResponse;
 
 use crate::ContractError;
 
@@ -17,6 +18,11 @@ pub const CHANNEL_INFO: Map<&str, ChannelInfo> = Map::new("channel_info");
 
 /// indexed by (channel_id, denom) maintaining the balance of the channel in that currency
 pub const CHANNEL_STATE: Map<(&str, &str), ChannelState> = Map::new("channel_state");
+
+pub const TOKEN_BRIDGE_CONTRACT: Item<String> = Item::new("token_bridge_contract");
+
+// Holds temp state for the wormhole message that the contract is currently processing
+pub const CURRENT_TRANSFER: Item<TransferInfoResponse> = Item::new("current_transfer");
 
 #[cw_serde]
 #[derive(Default)]

@@ -1044,6 +1044,7 @@ dependencies = [
 name = "ibc-gateway"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1054,7 +1055,10 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
+ "serde-json-wasm 0.4.1",
  "thiserror",
+ "token-bridge-cosmwasm",
+ "wormhole-cosmwasm",
 ]
 
 [[package]]

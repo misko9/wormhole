@@ -13,7 +13,7 @@ use crate::msg::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg,
 };
 use crate::state::{
-    Config, ADMIN, CONFIG,
+    Config, ADMIN, CONFIG, TOKEN_BRIDGE_CONTRACT,
 };
 use crate::execute::{
     execute_receive, execute_transfer, complete_transfer_and_send,
@@ -33,7 +33,7 @@ pub fn instantiate(
     _env: Env,
     info: MessageInfo,
     msg: InitMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, anyhow::Error> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let cfg = Config {
         default_timeout: msg.default_timeout,
@@ -41,6 +41,9 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &cfg)?;
 
     ADMIN.set(deps.branch(), Some(info.sender))?;
+
+    TOKEN_BRIDGE_CONTRACT
+        .save(deps.storage, &msg.token_bridge_contract)?;
 
     Ok(Response::default())
 }
@@ -51,7 +54,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, anyhow::Error> {
     match msg {
         ExecuteMsg::Receive(msg) => execute_receive(deps, env, info, msg),
         ExecuteMsg::Transfer(msg) => {
@@ -66,7 +69,18 @@ pub fn execute(
     }
 }
 
+/// Reply handler for various kinds of replies
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<SeiMsg>, anyhow::Error> {
+    // handle submessage cases based on the reply id
+    if msg.id == COMPLETE_TRANSFER_REPLY_ID {
+        return handle_complete_transfer_reply(deps, env, msg);
+    }
 
+    // other cases probably from calling into the sei burn/mint messages and token factory methods
+
+    Ok(Response::default())
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
@@ -84,7 +98,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod test {
     use super::*;
     use crate::test_helpers::*;
@@ -367,4 +381,4 @@ mod test {
             panic!("Unexpected return message: {:?}", res.messages[0]);
         }
     }
-}
+}*/

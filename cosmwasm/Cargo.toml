@@ -11,7 +11,8 @@ members = [
     "packages/wormhole-bindings",
     "packages/cw_transcode",
     "contracts/wormhole-ibc",
-    "contracts/wormchain-ibc-receiver"
+    "contracts/wormchain-ibc-receiver",
+    "contracts/ibc-gateway"
 ]
 
 # Needed to prevent unwanted feature unification between normal builds and dev builds.  See
@@ -33,6 +34,7 @@ overflow-checks = true
 accountant = { path = "packages/accountant" }
 cw_transcode = { path = "packages/cw_transcode" }
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
+ibc-gateway = { path = "contracts/ibc-gateway" }
 serde_wormhole = { path = "../sdk/rust/serde_wormhole" }
 token-bridge-cosmwasm = { path = "contracts/token-bridge" }
 global-accountant = { path = "contracts/global-accountant" }

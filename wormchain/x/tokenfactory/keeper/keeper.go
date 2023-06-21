@@ -6,6 +6,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
@@ -16,23 +17,26 @@ import (
 
 type (
 	Keeper struct {
-		storeKey sdk.StoreKey
+		storeKey storetypes.StoreKey
 
 		paramSpace paramtypes.Subspace
 
 		accountKeeper       types.AccountKeeper
 		bankKeeper          types.BankKeeper
 		communityPoolKeeper types.CommunityPoolKeeper
+
+		enabledCapabilities []string
 	}
 )
 
 // NewKeeper returns a new instance of the x/tokenfactory keeper
 func NewKeeper(
-	storeKey sdk.StoreKey,
+	storeKey storetypes.StoreKey,
 	paramSpace paramtypes.Subspace,
 	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
 	communityPoolKeeper types.CommunityPoolKeeper,
+	enabledCapabilities []string,
 ) Keeper {
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
@@ -45,6 +49,8 @@ func NewKeeper(
 		accountKeeper:       accountKeeper,
 		bankKeeper:          bankKeeper,
 		communityPoolKeeper: communityPoolKeeper,
+
+		enabledCapabilities: enabledCapabilities,
 	}
 }
 

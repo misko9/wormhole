@@ -10,7 +10,7 @@ import (
 
 var _ types.QueryServer = Keeper{}
 
-func (k Keeper) Params(ctx context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
+func (k Keeper) Params(ctx context.Context, _ *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	params := k.GetParams(sdkCtx)
 
@@ -30,6 +30,6 @@ func (k Keeper) DenomAuthorityMetadata(ctx context.Context, req *types.QueryDeno
 
 func (k Keeper) DenomsFromCreator(ctx context.Context, req *types.QueryDenomsFromCreatorRequest) (*types.QueryDenomsFromCreatorResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	denoms := k.getDenomsFromCreator(sdkCtx, req.GetCreator())
+	denoms := k.GetDenomsFromCreator(sdkCtx, req.GetCreator())
 	return &types.QueryDenomsFromCreatorResponse{Denoms: denoms}, nil
 }

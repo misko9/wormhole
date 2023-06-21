@@ -5,7 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/wormhole-foundation/wormchain/app/apptesting"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/testhelpers"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
@@ -36,7 +36,7 @@ func (suite *KeeperTestSuite) TestMsgCreateDenom() {
 	suite.Require().True(preCreateBalance.Sub(postCreateBalance).IsEqual(denomCreationFee[0]))
 
 	// Make sure that a second version of the same denom can't be recreated
-	res, err = suite.msgServer.CreateDenom(sdk.WrapSDKContext(suite.Ctx), types.NewMsgCreateDenom(suite.TestAccs[0].String(), "bitcoin"))
+	_, err = suite.msgServer.CreateDenom(sdk.WrapSDKContext(suite.Ctx), types.NewMsgCreateDenom(suite.TestAccs[0].String(), "bitcoin"))
 	suite.Require().Error(err)
 
 	// Creating a second denom should work
@@ -57,14 +57,14 @@ func (suite *KeeperTestSuite) TestMsgCreateDenom() {
 	suite.Require().NotEmpty(res.GetNewTokenDenom())
 
 	// Make sure that an address with a "/" in it can't create denoms
-	res, err = suite.msgServer.CreateDenom(sdk.WrapSDKContext(suite.Ctx), types.NewMsgCreateDenom("osmosis.eth/creator", "bitcoin"))
+	_, err = suite.msgServer.CreateDenom(sdk.WrapSDKContext(suite.Ctx), types.NewMsgCreateDenom("osmosis.eth/creator", "bitcoin"))
 	suite.Require().Error(err)
 }
 
 func (suite *KeeperTestSuite) TestCreateDenom() {
 	var (
 		primaryDenom            = types.DefaultParams().DenomCreationFee[0].Denom
-		secondaryDenom          = apptesting.SecondaryDenom
+		secondaryDenom          = testhelpers.SecondaryDenom
 		defaultDenomCreationFee = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(50000000)))}
 		twoDenomCreationFee     = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(50000000)), sdk.NewCoin(secondaryDenom, sdk.NewInt(50000000)))}
 		nilCreationFee          = types.Params{DenomCreationFee: nil}

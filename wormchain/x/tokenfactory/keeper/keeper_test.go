@@ -9,6 +9,7 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/app/apptesting"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/testhelpers"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
@@ -28,13 +29,13 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	suite.Setup()
 	// Fund every TestAcc with two denoms, one of which is the denom creation fee
-	fundAccsAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)), sdk.NewCoin(apptesting.SecondaryDenom, apptesting.SecondaryAmount))
+	fundAccsAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)), sdk.NewCoin(testhelpers.SecondaryDenom, testhelpers.SecondaryAmount))
 	for _, acc := range suite.TestAccs {
 		suite.FundAcc(acc, fundAccsAmount)
 	}
 
 	suite.queryClient = types.NewQueryClient(suite.QueryHelper)
-	suite.msgServer = keeper.NewMsgServerImpl(*suite.App.TokenFactoryKeeper)
+	suite.msgServer = keeper.NewMsgServerImpl(suite.App.TokenFactoryKeeper)
 }
 
 func (suite *KeeperTestSuite) CreateDefaultDenom() {

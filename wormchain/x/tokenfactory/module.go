@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -23,8 +24,8 @@ import (
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/wormhole-foundation/wormchain/simulation/simtypes"
 	simulation "github.com/wormhole-foundation/wormchain/x/tokenfactory/simulation"
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/client/cli"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
@@ -67,7 +68,7 @@ func (AppModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 }
 
 // ValidateGenesis performs genesis state validation for the x/tokenfactory module.
-func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingConfig, bz json.RawMessage) error {
+func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
 	var genState types.GenesisState
 	if err := cdc.UnmarshalJSON(bz, &genState); err != nil {
 		return fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err)
@@ -77,7 +78,7 @@ func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncod
 }
 
 // RegisterRESTRoutes registers the capability module's REST service handlers.
-func (AppModuleBasic) RegisterRESTRoutes(clientCtx client.Context, rtr *mux.Router) {
+func (AppModuleBasic) RegisterRESTRoutes(_ client.Context, _ *mux.Router) {
 }
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
@@ -135,7 +136,7 @@ func (am AppModule) Route() sdk.Route {
 func (AppModule) QuerierRoute() string { return types.QuerierRoute }
 
 // LegacyQuerierHandler returns the x/tokenfactory module's Querier.
-func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
+func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 	return nil
 }
 
@@ -183,20 +184,46 @@ func (am AppModule) EndBlock(_ sdk.Context, _ abci.RequestEndBlock) []abci.Valid
 
 // AppModuleSimulationV2 functions
 
-// GenerateGenesisState creates a randomized GenState of the tokenfactory module.
-func (am AppModule) SimulatorGenesisState(simState *module.SimulationState, s *simtypes.SimCtx) {
-	tfDefaultGen := types.DefaultGenesis()
-	tfDefaultGen.Params.DenomCreationFee = sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(10000000)))
-	tfDefaultGenJson := simState.Cdc.MustMarshalJSON(tfDefaultGen)
-	simState.GenState[types.ModuleName] = tfDefaultGenJson
+// // GenerateGenesisState creates a randomized GenState of the tokenfactory module.
+// func (am AppModule) SimulatorGenesisState(simState *module.SimulationState, s *simtypes.SimCtx) {
+// 	tfDefaultGen := types.DefaultGenesis()
+// 	tfDefaultGen.Params.DenomCreationFee = sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(10000000)))
+// 	tfDefaultGenJson := simState.Cdc.MustMarshalJSON(tfDefaultGen)
+// 	simState.GenState[types.ModuleName] = tfDefaultGenJson
+// }
+
+// // WeightedOperations returns the all the lockup module operations with their respective weights.
+// func (am AppModule) Actions() []simtypes.Action {
+// 	return []simtypes.Action{
+// 		simtypes.NewMsgBasedAction("create token factory token", am.keeper, simulation.RandomMsgCreateDenom),
+// 		simtypes.NewMsgBasedAction("mint token factory token", am.keeper, simulation.RandomMsgMintDenom),
+// 		simtypes.NewMsgBasedAction("burn token factory token", am.keeper, simulation.RandomMsgBurnDenom),
+// 		simtypes.NewMsgBasedAction("change admin token factory token", am.keeper, simulation.RandomMsgChangeAdmin),
+// 	}
+// }
+
+// ____________________________________________________________________________
+
+// AppModuleSimulation functions
+func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
+	simulation.RandomizedGenState(simState)
 }
 
-// WeightedOperations returns the all the lockup module operations with their respective weights.
-func (am AppModule) Actions() []simtypes.Action {
-	return []simtypes.Action{
-		simtypes.NewMsgBasedAction("create token factory token", am.keeper, simulation.RandomMsgCreateDenom),
-		simtypes.NewMsgBasedAction("mint token factory token", am.keeper, simulation.RandomMsgMintDenom),
-		simtypes.NewMsgBasedAction("burn token factory token", am.keeper, simulation.RandomMsgBurnDenom),
-		simtypes.NewMsgBasedAction("change admin token factory token", am.keeper, simulation.RandomMsgChangeAdmin),
-	}
+// GenerateGenesisState creates a randomized GenState of the bank module.
+func (am AppModule) ProposalContents(_ module.SimulationState) []simtypes.WeightedProposalContent {
+	return nil
+}
+
+// RandomizedParams creates randomized bank param changes for the simulator.
+func (am AppModule) RandomizedParams(r *rand.Rand) []simtypes.ParamChange {
+	return simulation.ParamChanges(r)
+}
+
+// RegisterStoreDecoder registers a decoder for supply module's types
+func (am AppModule) RegisterStoreDecoder(_ sdk.StoreDecoderRegistry) {
+}
+
+// WeightedOperations returns the all the gov module operations with their respective weights.
+func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
+	return simulation.WeightedOperations(&simState, am.keeper, am.accountKeeper, am.bankKeeper)
 }

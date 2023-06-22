@@ -1,0 +1,53 @@
+[package]
+name = "ibc-gateway"
+version = "0.1.0"
+authors = ["Wormhole Project Contributors"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 0
+debug = true
+rpath = false
+lto = false
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all instantiate/execute/query/reply exports
+library = []
+
+[package.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.6
+"""
+
+[dependencies]
+cosmwasm-std = "1.0.0"
+cw-storage-plus = "0.13.2"
+cw20 = "0.13.2"
+cosmwasm-schema = "1"
+anyhow = "1"
+serde-json-wasm = "0.4"
+bs58 = "0.4.0"
+cw-utils = "1.0.1"
+
+cw20-wrapped-2 = { version = "0.1.0", features = ["library"] }
+token-bridge-cosmwasm = { version = "0.1.0", features = ["library"] }
+wormhole-cosmwasm = { version = "0.1.0", features = ["library"] }
+schemars = "0.8.3"
+serde = { version = "1.0.127", default-features = false, features = ["derive"] }
+
+[patch.crates-io]
+cw20-wrapped-2 = { git = "https://github.com/wormhole-foundation/wormhole" }
+token-bridge-cosmwasm = { git = "https://github.com/wormhole-foundation/wormhole" }
+wormhole-cosmwasm = { git = "https://github.com/wormhole-foundation/wormhole" }

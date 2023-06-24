@@ -76,7 +76,6 @@ func (m *CustomMessenger) createDenom(ctx sdk.Context, contractAddr sdk.AccAddre
 	if err != nil {
 		return nil, nil, sdkerrors.Wrap(err, "perform create denom")
 	}
-	// TODO: double check how this is all encoded to the contract
 	return nil, [][]byte{bz}, nil
 }
 

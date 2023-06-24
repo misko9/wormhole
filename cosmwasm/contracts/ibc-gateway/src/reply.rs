@@ -1,23 +1,31 @@
 #[cfg(not(feature = "library"))]
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    coin, from_binary, BankMsg, Deps, DepsMut, Env, Reply, Response,
+    coin, from_binary, Binary, BankMsg, Deps, DepsMut, Env, Reply, Response, SubMsg,
 };
 use cw_token_bridge::msg::{
     CompleteTransferResponse,
 };
+use std::str;
+use cw_wormhole::byte_utils::ByteUtils;
+use crate::{
+    bindings::CreateDenomResponse,
+    execute::contract_addr_from_base58,
+    msg::CREATE_DENOM_REPLY_ID,
+};
+
 
 use crate::{
     msg::GatewayIbcTokenBridgePayload,
     state::{CURRENT_TRANSFER, CW_DENOMS},
-    bindings::{WormchainMsg, Metadata, DenomUnit},
+    bindings::{TokenFactoryMsg, TokenMsg},
 };
 
 pub fn handle_complete_transfer_reply(
     deps: DepsMut,
     env: Env,
     msg: Reply,
-) -> Result<Response<WormchainMsg>, anyhow::Error> {
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // we should only be replying on success
     ensure!(
         msg.result.is_ok(),
@@ -45,6 +53,7 @@ pub fn handle_complete_transfer_reply(
     // deserialize payload into the type we expect
     let payload: GatewayIbcTokenBridgePayload = serde_json_wasm::from_slice(&transfer_info.payload)
         .context("failed to deserialize transfer payload")?;
+ 
     match payload {
         GatewayIbcTokenBridgePayload::Simple { chain, recipient, fee, nonce } => {
             let recipient_decoded = String::from_utf8(recipient.to_vec()).context(format!(
@@ -80,11 +89,12 @@ pub fn convert_cw20_to_bank(
     recipient: String,
     amount: u128,
     contract_addr: String,
-) -> Result<Response<WormchainMsg>, anyhow::Error> {
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // check the recipient and contract addresses are valid
-    deps.api
-        .addr_validate(&recipient)
-        .context(format!("invalid recipient address {}", recipient))?;
+    // recipient will have a different bech32 prefix and fail
+    //deps.api
+    //    .addr_validate(&recipient)
+    //    .context(format!("invalid recipient address {}", recipient))?;
 
     deps.api
         .addr_validate(&contract_addr)
@@ -98,25 +108,21 @@ pub fn convert_cw20_to_bank(
         + "/"
         + subdenom.as_ref();
 
-    let mut response: Response<WormchainMsg> = Response::new();
+    let mut response: Response<TokenFactoryMsg> = Response::new();
 
     // check contract storage see if we've created a denom for this cw20 token yet
     // if we haven't created the denom, then create the denom
     // info.sender contains the cw20 contract address
     if !CW_DENOMS.has(deps.storage, contract_addr.clone()) {
         // call into token factory to create the denom
-        response = response.add_message(WormchainMsg::CreateDenom {
-            subdenom: tokenfactory_denom.clone(),
-            //subdenom: subdenom.clone(),
-            metadata: Metadata{
-                description: tokenfactory_denom.clone(),
-                denom_units: Vec::<DenomUnit>::new(),
-                base: subdenom.clone(),
-                display: tokenfactory_denom.clone(),
-                name: tokenfactory_denom.clone(),
-                symbol: subdenom.clone(),
+        let create_denom = SubMsg::reply_on_success(
+            TokenMsg::CreateDenom { 
+                subdenom: subdenom.clone(), 
+                metadata: None,
             },
-        });
+            CREATE_DENOM_REPLY_ID,
+        );
+        response = response.add_submessage(create_denom);
 
         // add the contract_addr => tokenfactory denom to storage
         CW_DENOMS
@@ -124,18 +130,21 @@ pub fn convert_cw20_to_bank(
             .context("failed to save contract_addr => tokenfactory denom to storage")?;
     }
 
-    // amount of tokenfactory coins to mint + send
-    //let amount = coin(amount, tokenfactory_denom);
-
     // add calls to mint and send bank tokens
-    response = response.add_message(WormchainMsg::MintTokens {
+    response = response.add_message(TokenMsg::MintTokens {
         denom: tokenfactory_denom.clone(),
         amount: amount.clone(),
         mint_to_address: env.contract.address.to_string(),
     });
-    /*response = response.add_message(BankMsg::Send {
-        to_address: recipient,
-        amount: vec![amount],
+
+    // amount of tokenfactory coins to ibc transfer
+   /* let amount = coin(amount, tokenfactory_denom);
+
+    response = response.add_message( IbcMsg::Transfer { 
+        channel_id: "channel-0".to_string(), 
+        to_address: recipient, 
+        amount: amount, 
+        timeout: IbcTimeout::with_timestamp(env.block.time.plus_days(1)),
     });*/
 
     Ok(response)
@@ -150,4 +159,38 @@ fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, 
     ))?;
     let base_58_addr = bs58::encode(contract_addr_bytes.as_slice()).into_string();
     Ok(base_58_addr)
+}
+
+pub fn handle_create_denom_reply(
+    _deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
+    // we should only be replying on success
+    ensure!(
+        msg.result.is_ok(),
+        "msg result is not okay, we should never get here"
+    );
+    
+    // extract the contract address from the create denom response
+    // if the token is not a factory token created by this contract, return error
+    // let parsed_denom = new_token_denom.split("/").collect::<Vec<_>>();
+    // ensure!(
+    //    parsed_denom.len() == 3
+    //        && parsed_denom[0] == "factory"
+    //        && parsed_denom[1] == env.contract.address.to_string(),
+    //    "coin is not from the token factory"
+    //);
+
+    // decode subdenom from base64 => encode as cosmos addr to get contract addr
+    //let cw20_contract_addr = contract_addr_from_base58(deps.as_ref(), parsed_denom[2])?;
+
+    // validate that the contract does indeed match the stored denom we have for it
+    //let _stored_denom = CW_DENOMS
+    //    .load(deps.storage, cw20_contract_addr)
+    //    .context(
+    //        "a corresponding denom for the extracted contract addr is not contained in storage",
+    //    )?;
+
+    Ok(Response::new())
 }

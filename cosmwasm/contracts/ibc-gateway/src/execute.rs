@@ -16,7 +16,7 @@ use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
 use crate::{
     msg::{GatewayIbcTokenBridgePayload, COMPLETE_TRANSFER_REPLY_ID},
     state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT},
-    bindings::WormchainMsg,
+    bindings::TokenFactoryMsg,
 };
 
 /// Calls into the wormhole token bridge to complete the payload3 transfer.
@@ -25,7 +25,7 @@ pub fn complete_transfer_and_convert(
     env: Env,
     info: MessageInfo,
     vaa: Binary,
-) -> Result<Response<WormchainMsg>, anyhow::Error> {
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // get the token bridge contract address from storage
     let token_bridge_contract = TOKEN_BRIDGE_CONTRACT
         .load(deps.storage)
@@ -92,7 +92,7 @@ pub fn convert_and_transfer(
     recipient_chain: u16,
     recipient: Binary,
     fee: Uint128,
-) -> Result<Response<WormchainMsg>, anyhow::Error> {
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // load the token bridge contract address
     /*let token_bridge_contract = TOKEN_BRIDGE_CONTRACT
         .load(deps.storage)
@@ -152,7 +152,7 @@ pub fn convert_bank_to_cw20(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-) -> Result<Response<WormchainMsg>, anyhow::Error> {
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // bank tokens sent to the contract will be in info.funds
     /*ensure!(
         info.funds.len() == 1,
@@ -218,7 +218,7 @@ pub fn convert_bank_to_cw20(
     Ok(cw20_contract_addr)
 }*/
 
-fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, anyhow::Error> {
+pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, anyhow::Error> {
     let decoded_addr = bs58::decode(subdenom)
         .into_vec()
         .context(format!("failed to decode base58 subdenom {}", subdenom))?;

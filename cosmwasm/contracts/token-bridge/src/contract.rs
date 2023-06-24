@@ -437,10 +437,10 @@ fn handle_attest_meta(
         }) => Ok(foreign_address),
     }?;
 
-    //let cfg = config_read(deps.storage).load()?;
+    let cfg = config_read(deps.storage).load()?;
     // If a CW20 wrapped already exists and this message has a newer sequence ID
     // we allow updating the metadata. If not, we create a brand new token.
-    /*let _message = if let Ok(contract) =
+    let message = if let Ok(contract) =
         wrapped_asset_read(deps.storage, meta.token_chain).load(token_address.as_slice())
     {
         // Prevent anyone from re-attesting with old VAAs.
@@ -482,10 +482,10 @@ fn handle_attest_meta(
             funds: vec![],
             label: "Wormhole Wrapped CW20".to_string(),
         })
-    };*/
+    };
     wrapped_asset_seq(deps.storage, meta.token_chain).save(&token_address, &sequence)?;
-    Ok(Response::new())
-    //Ok(Response::new().add_message(message))
+    //Ok(Response::new())
+    Ok(Response::new().add_message(message))
 }
 
 fn handle_create_asset_meta(

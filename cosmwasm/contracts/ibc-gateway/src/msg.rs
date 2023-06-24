@@ -8,6 +8,7 @@ use cosmwasm_std::{Binary, Uint128};
 use cw20::Cw20ReceiveMsg;
 
 pub const COMPLETE_TRANSFER_REPLY_ID: u64 = 1;
+pub const CREATE_DENOM_REPLY_ID: u64 = 2;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -53,9 +54,9 @@ pub enum ExecuteMsg {
     /// Cw20ReceiveMsg.msg will be deserialized into the ReceiveAction type.
     Receive(Cw20ReceiveMsg),
 }
-
 #[cw_serde]
 pub enum GatewayIbcTokenBridgePayload {
+    //Simple { chain: u16, fee: u32, nonce: u32 },
     Simple { chain: u16, recipient: Binary, fee: u128, nonce: u32 },
 	ContractControlled { chain: u16, contract: Binary, payload: Binary, fee: u128, nonce: u32 }
 }

@@ -9,10 +9,10 @@ use cosmwasm_std::{
 use cw20::Cw20ReceiveMsg;
 
 use crate::{
-    bindings::WormchainMsg,
-    msg::{ExecuteMsg, InstantiateMsg, COMPLETE_TRANSFER_REPLY_ID},
+    bindings::TokenFactoryMsg,
+    msg::{ExecuteMsg, InstantiateMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
     state::TOKEN_BRIDGE_CONTRACT,
-    reply::handle_complete_transfer_reply,
+    reply::{handle_complete_transfer_reply, handle_create_denom_reply},
     execute::{complete_transfer_and_convert, convert_and_transfer, convert_bank_to_cw20}
 };
 
@@ -43,7 +43,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<WormchainMsg>, anyhow::Error> {
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     match msg {
         ExecuteMsg::CompleteTransferAndConvert { vaa } => {
             complete_transfer_and_convert(deps, env, info, vaa)
@@ -54,6 +54,7 @@ pub fn execute(
             fee,
         } => convert_and_transfer(deps, info, env, recipient_chain, recipient, fee),
         ExecuteMsg::ConvertBankToCw20 {} => convert_bank_to_cw20(deps, info, env),
+        
         ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender,
             amount,
@@ -64,12 +65,15 @@ pub fn execute(
 
 /// Reply handler for various kinds of replies
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<WormchainMsg>, anyhow::Error> {
-    // handle submessage cases based on the reply id
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     if msg.id == COMPLETE_TRANSFER_REPLY_ID {
         return handle_complete_transfer_reply(deps, env, msg);
     }
 
-    // other cases probably from calling into the sei burn/mint messages and token factory methods
+    if msg.id == CREATE_DENOM_REPLY_ID {
+        return handle_create_denom_reply(deps, env, msg);
+    }
+
+    // other cases probably from calling into the burn/mint messages and token factory methods
     Ok(Response::default())
 }

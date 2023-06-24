@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
@@ -17,6 +16,7 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -66,7 +66,7 @@ func wormchainEncoding() *simappparams.EncodingConfig {
 	return cfg
 }
 
-func CreateSingleWormchain(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
+func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 	// Create chain factory with wormchain
 	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
 
@@ -77,6 +77,9 @@ func CreateSingleWormchain(t *testing.T, guardians guardians.ValSet) []ibc.Chain
 			NumValidators: &numVals,
 			NumFullNodes: &numFullNodes,
 		},
+		{Name: "gaia", Version: "v10.0.1", ChainConfig: ibc.ChainConfig{
+			GasPrices: "0.0uatom",
+		}},
 	})
 
 	// Get chains from the chain factory
@@ -86,7 +89,7 @@ func CreateSingleWormchain(t *testing.T, guardians guardians.ValSet) []ibc.Chain
 	return chains
 }
 
-func BuildInitialChain(t *testing.T, chains []ibc.Chain) context.Context {
+func BuildInterchain(t *testing.T, chains []ibc.Chain) context.Context {
 	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
 	ic := interchaintest.NewInterchain()
 
@@ -97,14 +100,24 @@ func BuildInitialChain(t *testing.T, chains []ibc.Chain) context.Context {
 	rep := testreporter.NewNopReporter()
 	eRep := rep.RelayerExecReporter(t)
 
+	wormGaiaPath := "wormgaia"
 	ctx := context.Background()
 	client, network := interchaintest.DockerSetup(t)
+	r := interchaintest.NewBuiltinRelayerFactory(ibc.CosmosRly, zaptest.NewLogger(t)).Build(
+		t, client, network)
+	ic.AddRelayer(r, "relayer")
+	ic.AddLink(interchaintest.InterchainLink{
+		Chain1: chains[0],
+		Chain2: chains[1],
+		Relayer: r,
+		Path: wormGaiaPath,
+	})
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
 		TestName:          t.Name(),
 		Client:            client,
 		NetworkID:         network,
-		SkipPathCreation:  true,
+		SkipPathCreation:  false,
 		BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
 	})
 	require.NoError(t, err)
@@ -112,6 +125,19 @@ func BuildInitialChain(t *testing.T, chains []ibc.Chain) context.Context {
 	t.Cleanup(func() {
 		_ = ic.Close()
 	})
+
+	// Start the relayer
+	err = r.StartRelayer(ctx, eRep, wormGaiaPath)
+	require.NoError(t, err)
+
+	t.Cleanup(
+		func() {
+			err := r.StopRelayer(ctx, eRep)
+			if err != nil {
+				t.Logf("an error occured while stopping the relayer: %s", err)
+			}
+		},
+	)
 
 	return ctx
 }
@@ -147,12 +173,15 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			if err != nil {
 				return nil, fmt.Errorf("failed to get validator pub key: %w", err)
 			}
-			validatorAccAddr := MustAccAddressFromBech32(validatorBech32.(string), chainConfig.Bech32Prefix).Bytes()
+			validatorAccAddr := helpers.MustAccAddressFromBech32(validatorBech32.(string), chainConfig.Bech32Prefix).Bytes()
 			validators = append(validators, validatorAccAddr)
 		}
 
 		// Get faucet address
 		faucetAddress, err := dyno.Get(g, "app_state", "auth", "accounts", numVals, "address")
+
+		// Get relayer address
+		relayerAddress, err := dyno.Get(g, "app_state", "auth", "accounts", numVals+1, "address")
 
 		// Set guardian set list and validators
 		guardianSetList := []GuardianSet{}
@@ -182,6 +211,11 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			AllowedAddress: faucetAddress.(string),
 			Name: "Faucet",
 		})
+		allowedAddresses = append(allowedAddresses, ValidatorAllowedAddress{
+			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
+			AllowedAddress: relayerAddress.(string),
+			Name: "Relayer",
+		})
 		if err := dyno.Set(g, allowedAddresses, "app_state", "wormhole", "allowedAddresses"); err != nil {
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
 		}
@@ -202,25 +236,6 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 		fmt.Println("Genesis: ", string(out))
 		return out, nil
 	}
-}
-
-
-func MustAccAddressFromBech32(address string, bech32Prefix string) sdk.AccAddress {
-	if len(strings.TrimSpace(address)) == 0 {
-		panic("empty address string is not allowed")
-	}
-
-	bz, err := sdk.GetFromBech32(address, bech32Prefix)
-	if err != nil {
-		panic(err)
-	}
-
-	err = sdk.VerifyAddressFormat(bz)
-	if err != nil {
-		panic(err)
-	}
-
-	return sdk.AccAddress(bz)
 }
 
 // Replace these with reference to x/wormchain/types

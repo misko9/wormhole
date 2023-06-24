@@ -12,7 +12,7 @@ require (
 
 require (
 	github.com/ethereum/go-ethereum v1.11.6
-	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230619000459-5b5ed8115994
+	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230622205228-443173428ad0
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20230614161948-7f6213019abf
 )

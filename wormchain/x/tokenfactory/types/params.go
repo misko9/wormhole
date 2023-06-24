@@ -27,8 +27,9 @@ func NewParams(denomCreationFee sdk.Coins) Params {
 // default tokenfactory module parameters.
 func DefaultParams() Params {
 	return Params{
-		DenomCreationFee:        sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 10_000_000)),
-		DenomCreationGasConsume: 2_000_000,
+		DenomCreationFee:        nil,
+		//DenomCreationFee:        sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 10_000_000)),
+		DenomCreationGasConsume: 0,
 	}
 }
 

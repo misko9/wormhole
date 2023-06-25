@@ -1418,8 +1418,8 @@ github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0/go.mod h1:43+3pMjjK
 github.com/minio/highwayhash v1.0.1/go.mod h1:BQskDq+xkJ12lmlUUi7U0M5Swg3EWR+dLTk+kldvVxY=
 github.com/minio/highwayhash v1.0.2 h1:Aak5U0nElisjDCfPSG79Tgzkn2gl66NxOMspRrKnA/g=
 github.com/minio/highwayhash v1.0.2/go.mod h1:BQskDq+xkJ12lmlUUi7U0M5Swg3EWR+dLTk+kldvVxY=
-github.com/misko9/wasmd v0.0.0-20230622232815-3e99503977ba h1:e8MPZGaOl9ltdYlOgwMc7rz+l7I2TsU9r/1cbPe6YJk=
-github.com/misko9/wasmd v0.0.0-20230622232815-3e99503977ba/go.mod h1:BcwmiI8b2fR2MGioz3HeVvON5QjSDfrnUbGu0gKRk5U=
+github.com/misko9/wasmd v0.0.0-20230624232719-79d46a8fdf2c h1:8vTWuyLNloP/bscke552iNCUCPhAtTWVWa2H1bNjPZg=
+github.com/misko9/wasmd v0.0.0-20230624232719-79d46a8fdf2c/go.mod h1:BcwmiI8b2fR2MGioz3HeVvON5QjSDfrnUbGu0gKRk5U=
 github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible/go.mod h1:8AuVvqP/mXw1px98n46wfvcGfQ4ci2FwoAjKYxuo3Z4=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/cli v1.1.0/go.mod h1:xcISNoH86gajksDmfB23e/pu+B+GeFRMYmoHXxx3xhI=

@@ -14,7 +14,18 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-var gaiaChainID = 11
+var (
+	gaiaChainID = 11
+
+	externalChainId = uint16(123)
+	externalChainEmitterAddr = "0x123EmitterAddress"
+
+	asset1Name = "Wrapped BTC"
+	asset1Symbol = "XBTC"
+	asset1ContractAddr = "0xXBTC"
+	asset1ChainID = externalChainId
+	asset1Decimals = uint8(6)
+)
 
 // TestWormchain runs through a simple test case for each deliverable
 func TestWormchain(t *testing.T) {
@@ -34,60 +45,62 @@ func TestWormchain(t *testing.T) {
 	_ = users[0] // Wormchain user
 	gaiaUser := users[1]
 
+	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 	
+	// Instantiate wormhole core contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 
-	/*queryMsg := QueryMsg{GuardianSetInfo: &struct{}{}}
-	var queryRsp QueryRsp
-	err := wormchain.QueryContract(ctx, coreContractAddr, queryMsg, &queryRsp)
-	require.NoError(t, err)*/
-
+	// Store cw20_wrapped_2 contract
 	wrappedAssetCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/cw20_wrapped_2.wasm", guardians)
 	fmt.Println("CW20 wrapped_2 code id: ", wrappedAssetCodeId)
 
+	// Store token bridge contract
 	tbContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/token_bridge.wasm", guardians)
 	fmt.Println("Token bridge contract code id: ", tbContractCodeId)
 
+	// Instantiate token bridge contract
 	tbInstantiateMsg:= helpers.TbContractInstantiateMsg(t, wormchainConfig, coreContractAddr, wrappedAssetCodeId)
 	tbContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", tbContractCodeId, "token_bridge", tbInstantiateMsg, guardians)
 	fmt.Println("Token bridge contract address: ", tbContractAddr)
 
-	// Add a bridged token
-	tbRegisterChainMsg := helpers.TbRegisterChainMsg(t, 123, "123TokenBridge", guardians)
+	// Register a new external chain
+	tbRegisterChainMsg := helpers.TbRegisterChainMsg(t, externalChainId, externalChainEmitterAddr, guardians)
 	_, err := wormchain.ExecuteContract(ctx, "faucet", tbContractAddr, string(tbRegisterChainMsg))
 	require.NoError(t, err)
 
-	name := "Wrapped BTC"
-	symbol := "XBTC"
-	assetAddr := "0xXBTC"
-	assetChainID := uint16(123)
-	
-	tbRegisterForeignAssetMsg := helpers.TbRegisterForeignAsset(t, assetAddr, assetChainID, "123TokenBridge", 6, symbol, name, guardians)
+	// Register a new foreign asset (Asset1) originating on externalChain
+	tbRegisterForeignAssetMsg := helpers.TbRegisterForeignAsset(t, asset1ContractAddr, asset1ChainID, externalChainEmitterAddr, asset1Decimals, asset1Symbol, asset1Name, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", tbContractAddr, string(tbRegisterForeignAssetMsg))
 	require.NoError(t, err)
 	
-	//cw20InstantiateMsg := helpers.Cw20ContractInstantiateMsg(t, name, symbol, assetChainID, assetAddr, 6, tbContractAddr)
-	//_ = helpers.InstantiateContract(t, ctx, wormchain, "faucet", wrappedAssetCodeId, symbol, cw20InstantiateMsg, guardians)
-
+	// Store ibc gateway contract
 	ibcGatewayCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_gateway.wasm", guardians)
 	fmt.Println("ibc_gateway code id: ", ibcGatewayCodeId)
 
+	// Instantiate ibc gateway contract
 	ibcGwInstantiateMsg := helpers.IbcGwContractInstantiateMsg(t, tbContractAddr)
 	ibcGwContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", ibcGatewayCodeId, "ibc_gateway", ibcGwInstantiateMsg, guardians)
 	fmt.Println("Ibc gateway contract address: ", ibcGwContractAddr)
 
+	// Create and process a simple ibc payload3: Transfers 1.231245 of asset1 from external chain through wormchain to gaia user
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, uint16(gaiaChainID), gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 ,1, 2, 3, 4, 5, 6, 7, 8}
-	payload3 := helpers.CreatePayload3(wormchain.Config(), 1231245, assetAddr, assetChainID, ibcGwContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
-	completeTransferAndConvertMsg := helpers.IbcGwCompleteTransferAndConvertMsg(t, 123, "123TokenBridge", payload3, guardians)
+	payload3 := helpers.CreatePayload3(wormchain.Config(), 1231245, asset1ContractAddr, asset1ChainID, ibcGwContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
+	completeTransferAndConvertMsg := helpers.IbcGwCompleteTransferAndConvertMsg(t, externalChainId, externalChainEmitterAddr, payload3, guardians)
+	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcGwContractAddr, completeTransferAndConvertMsg)
+
+	// Create and process a contract controlled ibc payload3: Transfers 1.456789 of asset1 from external chain through wormchain to gaia user (eventually to ibcHooksSimd contract)
+	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadContract(t, uint16(gaiaChainID), gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), []byte("{ContractPayload}"), 1)
+	payload3 = helpers.CreatePayload3(wormchain.Config(), 1456789, asset1ContractAddr, asset1ChainID, ibcGwContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
+	completeTransferAndConvertMsg = helpers.IbcGwCompleteTransferAndConvertMsg(t, externalChainId, externalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcGwContractAddr, completeTransferAndConvertMsg)
 
 	// wait for transfer
-	err = testutil.WaitForBlocks(ctx, 5, wormchain)
+	err = testutil.WaitForBlocks(ctx, 3, wormchain)
 	require.NoError(t, err)
 	
 	coins, err := wormchain.AllBalances(ctx, ibcGwContractAddr)

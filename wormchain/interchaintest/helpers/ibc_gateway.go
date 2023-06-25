@@ -112,19 +112,17 @@ type GatewayIbcTokenBridgePayloadContractControlled struct {
 
 type ContractControlled struct {
 	Chain uint16 `json:"chain"`
-	Contract []byte `json:"recipient"`
+	Contract []byte `json:"contract"`
 	Payload []byte `json:"payload"`
-	Fee uint64 `json:"fee"` // TODO: should be uint128
 	Nonce uint32 `json:"nonce"`
 }
 
-func CreateGatewayIbcTokenBridgePayloadContract(t *testing.T, chainID uint16, contract string, payload []byte, fee uint64, nonce uint32) []byte {
+func CreateGatewayIbcTokenBridgePayloadContract(t *testing.T, chainID uint16, contract string, payload []byte, nonce uint32) []byte {
 	msg := GatewayIbcTokenBridgePayloadContractControlled{
 		ContractControlled: ContractControlled{
 			Chain: chainID,
 			Contract: []byte(contract),
 			Payload: payload,
-			Fee: fee,
 			Nonce: nonce,
 		},
 	}

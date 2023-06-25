@@ -56,7 +56,6 @@ pub enum ExecuteMsg {
 }
 #[cw_serde]
 pub enum GatewayIbcTokenBridgePayload {
-    //Simple { chain: u16, fee: u32, nonce: u32 },
     Simple { chain: u16, recipient: Binary, fee: u128, nonce: u32 },
-	ContractControlled { chain: u16, contract: Binary, payload: Binary, fee: u128, nonce: u32 }
+    ContractControlled { chain: u16, contract: Binary, payload: Binary, nonce: u32 }
 }

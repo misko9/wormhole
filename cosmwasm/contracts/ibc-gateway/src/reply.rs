@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    coin, from_binary, Binary, BankMsg, Deps, DepsMut, Env, Reply, Response, SubMsg,
+    coin, from_binary, Binary, BankMsg, Deps, DepsMut, Env, IbcTimeout, IbcMsg, Reply, Response, SubMsg,
 };
 use cw_token_bridge::msg::{
     CompleteTransferResponse,
@@ -55,40 +55,46 @@ pub fn handle_complete_transfer_reply(
         .context("failed to deserialize transfer payload")?;
  
     match payload {
-        GatewayIbcTokenBridgePayload::Simple { chain, recipient, fee, nonce } => {
+        GatewayIbcTokenBridgePayload::Simple { chain, recipient, fee: _, nonce: _ } => {
             let recipient_decoded = String::from_utf8(recipient.to_vec()).context(format!(
                 "failed to convert {} to utf8 string",
                 recipient.to_string()
             ))?;
-            convert_cw20_to_bank(
+            convert_cw20_to_bank_and_send(
                 deps,
                 env,
                 recipient_decoded,
                 res_data.amount.into(),
                 contract_addr,
+                chain,
+                None,
             )
         },
-        GatewayIbcTokenBridgePayload::ContractControlled { chain, contract, payload, fee, nonce } => {
+        GatewayIbcTokenBridgePayload::ContractControlled { chain, contract, payload, nonce: _ } => {
             let contract_decoded = String::from_utf8(contract.to_vec()).context(format!(
                 "failed to convert {} to utf8 string",
                 contract.to_string()
             ))?;
-            convert_cw20_to_bank(
+            convert_cw20_to_bank_and_send(
                 deps,
                 env,
                 contract_decoded,
                 res_data.amount.into(),
                 contract_addr,
+                chain,
+                Some(payload),
             )
         }
     }
 }
-pub fn convert_cw20_to_bank(
+pub fn convert_cw20_to_bank_and_send(
     deps: DepsMut,
     env: Env,
     recipient: String,
     amount: u128,
     contract_addr: String,
+    _chaid_id: u16,
+    payload: Option<Binary>,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // check the recipient and contract addresses are valid
     // recipient will have a different bech32 prefix and fail
@@ -138,14 +144,28 @@ pub fn convert_cw20_to_bank(
     });
 
     // amount of tokenfactory coins to ibc transfer
-   /* let amount = coin(amount, tokenfactory_denom);
+    let amount = coin(amount, tokenfactory_denom);
+
+    let channel = "channel-0".to_owned();
+
+    let channel_entry = match payload {
+        Some(payload) => {
+            let payload_decoded = String::from_utf8(payload.to_vec()).context(format!(
+                "failed to convert {} to utf8 string",
+                payload.to_string()
+            ))?;
+            channel + "," + &payload_decoded
+            //channel
+        },
+        None => channel
+    };
 
     response = response.add_message( IbcMsg::Transfer { 
-        channel_id: "channel-0".to_string(), 
+        channel_id: channel_entry, 
         to_address: recipient, 
         amount: amount, 
         timeout: IbcTimeout::with_timestamp(env.block.time.plus_days(1)),
-    });*/
+    });
 
     Ok(response)
 }

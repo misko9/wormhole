@@ -11,9 +11,9 @@ use cw20::Cw20ReceiveMsg;
 use crate::{
     bindings::TokenFactoryMsg,
     msg::{ExecuteMsg, InstantiateMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
-    state::TOKEN_BRIDGE_CONTRACT,
+    state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
     reply::{handle_complete_transfer_reply, handle_create_denom_reply},
-    execute::{complete_transfer_and_convert, convert_and_transfer, convert_bank_to_cw20}
+    execute::{complete_transfer_and_convert, convert_and_transfer, convert_bank_to_cw20, submit_update_chain_to_channel_map}
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -26,6 +26,10 @@ pub fn instantiate(
     TOKEN_BRIDGE_CONTRACT
         .save(deps.storage, &msg.token_bridge_contract)
         .context("failed to save token bridge contract address to storage")?;
+
+    WORMHOLE_CONTRACT
+        .save(deps.storage, &msg.wormhole_contract)
+        .context("failed to save wormhole contract address to storage")?;
 
     Ok(Response::new()
         .add_attribute("action", "instantiate")
@@ -60,6 +64,9 @@ pub fn execute(
             amount,
             msg,
         }) => Ok(Response::new()),
+
+        ExecuteMsg::SubmitUpdateChainToChannelMap { vaa } 
+            => submit_update_chain_to_channel_map(deps, env, info, vaa),
     }
 }
 

@@ -80,6 +80,21 @@ func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 		{Name: "gaia", Version: "v10.0.1", ChainConfig: ibc.ChainConfig{
 			GasPrices: "0.0uatom",
 		}},
+		{
+			Name:      "osmosis",
+			ChainConfig: ibc.ChainConfig{
+				ChainID:  "osmosis-1001", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
+				Images: []ibc.DockerImage{
+					{
+						Repository: "osmosis",
+						Version: "local",
+						UidGid: "1025:1025",
+					},
+				},
+				GasPrices: "1.0uosmo",
+				EncodingConfig: wasm.WasmEncoding(),
+			},
+		},
 	})
 
 	// Get chains from the chain factory
@@ -89,7 +104,7 @@ func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 	return chains
 }
 
-func BuildInterchain(t *testing.T, chains []ibc.Chain) context.Context {
+func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Relayer, *testreporter.RelayerExecReporter) {
 	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
 	ic := interchaintest.NewInterchain()
 
@@ -101,16 +116,23 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) context.Context {
 	eRep := rep.RelayerExecReporter(t)
 
 	wormGaiaPath := "wormgaia"
+	wormOsmoPath := "wormosmo"
 	ctx := context.Background()
 	client, network := interchaintest.DockerSetup(t)
 	r := interchaintest.NewBuiltinRelayerFactory(ibc.CosmosRly, zaptest.NewLogger(t)).Build(
 		t, client, network)
 	ic.AddRelayer(r, "relayer")
 	ic.AddLink(interchaintest.InterchainLink{
-		Chain1: chains[0],
-		Chain2: chains[1],
+		Chain1: chains[0], // Wormchain
+		Chain2: chains[1], // Gaia
 		Relayer: r,
 		Path: wormGaiaPath,
+	})
+	ic.AddLink(interchaintest.InterchainLink{
+		Chain1: chains[0], // Wormchain
+		Chain2: chains[2], // Osmosis
+		Relayer: r,
+		Path: wormOsmoPath,
 	})
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
@@ -126,8 +148,13 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) context.Context {
 		_ = ic.Close()
 	})
 
+	//channels, err := r.GetChannels(ctx, eRep, chains[0].Config().ChainID)
+	//require.NoError(t, err)
+	//clients, err := r.GetClients(ctx, eRep, chains[0].Config().ChainID)
+	//conns, err := r.GetConnections(ctx, eRep, chains[0].Config().ChainID)
+
 	// Start the relayer
-	err = r.StartRelayer(ctx, eRep, wormGaiaPath)
+	err = r.StartRelayer(ctx, eRep, wormGaiaPath, wormOsmoPath)
 	require.NoError(t, err)
 
 	t.Cleanup(
@@ -139,7 +166,7 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) context.Context {
 		},
 	)
 
-	return ctx
+	return ctx, r, eRep
 }
 
 // Modify the genesis file:

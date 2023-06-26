@@ -8,6 +8,7 @@ use cw_token_bridge::msg::{
 };
 use std::str;
 use cw_wormhole::byte_utils::ByteUtils;
+use crate::state::CHAIN_TO_CHANNEL_MAP;
 use crate::{
     bindings::CreateDenomResponse,
     execute::contract_addr_from_base58,
@@ -93,7 +94,7 @@ pub fn convert_cw20_to_bank_and_send(
     recipient: String,
     amount: u128,
     contract_addr: String,
-    _chaid_id: u16,
+    chain_id: u16,
     payload: Option<Binary>,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // check the recipient and contract addresses are valid
@@ -146,7 +147,9 @@ pub fn convert_cw20_to_bank_and_send(
     // amount of tokenfactory coins to ibc transfer
     let amount = coin(amount, tokenfactory_denom);
 
-    let channel = "channel-0".to_owned();
+    let channel = CHAIN_TO_CHANNEL_MAP
+        .load(deps.storage, chain_id)
+        .context("chain id does not have an allowed channel")?;
 
     let channel_entry = match payload {
         Some(payload) => {

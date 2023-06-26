@@ -3,7 +3,7 @@
 // 3. convertToBank(cw20Tokens)
 // 4. convertToCW20(bankTokens)
 
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Uint128};
 use cw20::Cw20ReceiveMsg;
 
@@ -13,6 +13,7 @@ pub const CREATE_DENOM_REPLY_ID: u64 = 2;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub token_bridge_contract: String,
+    pub wormhole_contract: String,
 }
 
 #[cw_serde]
@@ -53,9 +54,31 @@ pub enum ExecuteMsg {
     /// Implements the CW20 receiver interface to recieve cw20 tokens and act on them.
     /// Cw20ReceiveMsg.msg will be deserialized into the ReceiveAction type.
     Receive(Cw20ReceiveMsg),
+
+
+    /// Submit a signed VAA to update the on-chain state.
+    SubmitUpdateChainToChannelMap {
+        /// VAA to submit. The VAA should be encoded in the standard wormhole
+        /// wire format.
+        vaa: Binary,
+    },
 }
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    #[returns(ChannelResponse)]
+    ChainChannel { chain_id: u16 }
+}
+
+#[cw_serde]
+pub struct ChannelResponse {
+    pub channel: String,
+}
+
 #[cw_serde]
 pub enum GatewayIbcTokenBridgePayload {
     Simple { chain: u16, recipient: Binary, fee: u128, nonce: u32 },
     ContractControlled { chain: u16, contract: Binary, payload: Binary, nonce: u32 }
 }
+

@@ -1,21 +1,33 @@
 #[cfg(not(feature = "library"))]
-use anyhow::{ensure, Context};
+use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
-    coin, from_binary, to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, QueryRequest, Reply, Response, SubMsg, Uint128, WasmMsg, WasmQuery,
+    coin, from_binary, to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Empty, Event,
+    MessageInfo, QueryRequest, Reply, Response, SubMsg, StdResult, StdError, Uint128, WasmMsg, WasmQuery,
 };
 use cw20::Cw20ExecuteMsg;
 use cw_token_bridge::msg::{
     Asset, AssetInfo, CompleteTransferResponse, ExecuteMsg as TokenBridgeExecuteMsg,
     QueryMsg as TokenBridgeQueryMsg, TransferInfoResponse,
 };
-use cw_wormhole::byte_utils::ByteUtils;
+use cw_wormhole::{
+    byte_utils::ByteUtils,
+    msg::QueryMsg as WormholeQueryMsg,
+    state::{ParsedVAA},
+};
 
 use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
+use wormhole_sdk::{
+    vaa::{Body, Header},
+    ibc_shim::{Action, GovernancePacket},
+    Chain,
+};
+use serde_wormhole::RawMessage;
+use wormhole_bindings::WormholeQuery;
+use std::str;
 
 use crate::{
     msg::{GatewayIbcTokenBridgePayload, COMPLETE_TRANSFER_REPLY_ID},
-    state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT},
+    state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT, VAA_ARCHIVE, CHAIN_TO_CHANNEL_MAP, WORMHOLE_CONTRACT},
     bindings::TokenFactoryMsg,
 };
 
@@ -227,4 +239,88 @@ pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, a
         .addr_humanize(&canonical_addr.into())
         .map(|a| a.to_string())
         .context(format!("failed to humanize cosmos address {}", subdenom))
+}
+
+pub fn submit_update_chain_to_channel_map(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    vaa: Binary,
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
+
+    // get the token bridge contract address from storage
+    let wormhole_contract = WORMHOLE_CONTRACT
+        .load(deps.storage)
+        .context("could not load token bridge contract address")?;
+
+    //let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let wrapped_vaa: Result<ParsedVAA, StdError> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    //let vaa = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: wormhole_contract,
+        msg: to_binary(&WormholeQueryMsg::VerifyVAA {
+            vaa: vaa.clone(),
+            block_time: env.block.time.seconds(),
+        })?,
+    }));
+
+    let vaa = match wrapped_vaa {
+        Ok(parsedVAA) => parsedVAA, 
+        Err(error) => {
+            return Ok(Response::new()
+                .add_attribute("error", "parsed vaa")
+                .add_attribute("err_output", error.to_string()));
+        }
+    };
+
+    // validate this is a governance VAA
+    ensure!(
+        Chain::from(vaa.emitter_chain) == Chain::Solana
+            && vaa.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER.0,
+        "not a governance VAA"
+    );
+
+
+    // parse the governance packet
+    let govpacket = serde_wormhole::from_slice::<GovernancePacket>(&vaa.payload)
+        .context("failed to parse governance packet")?;
+
+    // validate the governance VAA is directed to wormchain
+    ensure!(
+        govpacket.chain == Chain::Wormchain || govpacket.chain == Chain::Any,
+        "this governance VAA is for another chain"
+    );
+
+    if VAA_ARCHIVE.has(deps.storage, vaa.hash.as_slice()) {
+        bail!("governance vaa already executed");
+    }
+    VAA_ARCHIVE
+        .save(deps.storage, vaa.hash.as_slice(), &true)
+        .context("failed to save governance VAA to archive")?;
+
+    // match the governance action and execute the corresponding logic
+    match govpacket.action {
+        Action::UpdateChannelChain {
+            channel_id,
+            chain_id,
+        } => {
+            ensure!(chain_id != Chain::Wormchain, "the wormchain-ibc-receiver contract should not maintain channel mappings to wormchain");
+
+            let channel_id_str =
+                str::from_utf8(&channel_id).context("failed to parse channel-id as utf-8")?;
+            let channel_id_trimmed = channel_id_str.trim_start_matches(char::from(0));
+
+            // update storage with the mapping
+            CHAIN_TO_CHANNEL_MAP
+                .save(
+                    deps.storage,
+                    chain_id.into(),
+                    &channel_id_trimmed.to_string(),
+                )
+                .context("failed to save channel chain")?;
+            return Ok(Response::new()
+                .add_event(Event::new("UpdateChainToChannelMap")
+                    .add_attribute("chain_id", chain_id.to_string())
+                    .add_attribute("channel_id", channel_id_trimmed)));
+        }
+    }
 }

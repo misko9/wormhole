@@ -15,11 +15,13 @@ import (
 
 type IbcGwInstantiateMsg struct {
 	TokenBridgeContract string `json:"token_bridge_contract"`
+	CoreContract string `json:"wormhole_contract"`
 }
 
-func IbcGwContractInstantiateMsg(t *testing.T, tbContract string) string {
+func IbcGwContractInstantiateMsg(t *testing.T, tbContract string, coreContract string) string {
 	msg := IbcGwInstantiateMsg{
 		TokenBridgeContract: tbContract,
+		CoreContract: coreContract,
 	}
 	msgBz, err := json.Marshal(msg)
 	require.NoError(t, err)
@@ -27,7 +29,41 @@ func IbcGwContractInstantiateMsg(t *testing.T, tbContract string) string {
 	return string(msgBz)
 }
 
-type IbcGwExecute struct {
+type IbcGwSubmitUpdateChainToChannelMap struct {
+	SubmitUpdateChainToChannelMap SubmitUpdateChainToChannelMap `json:"submit_update_chain_to_channel_map"`
+}
+
+type SubmitUpdateChainToChannelMap struct {
+	Vaa []byte `json:"vaa"`
+}
+
+func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, allowlistChannel string, guardians *guardians.ValSet) string {
+	payload := new(bytes.Buffer)
+	module := vaa.LeftPadBytes("IbcShim", 32)
+	payload.Write(module.Bytes())
+	vaa.MustWrite(payload, binary.BigEndian, uint8(1))
+	vaa.MustWrite(payload, binary.BigEndian, uint16(0))
+	channelPadded := vaa.LeftPadBytes(allowlistChannel, 64)
+	payload.Write(channelPadded.Bytes())
+	vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
+
+	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+		
+	msg := IbcGwSubmitUpdateChainToChannelMap{
+		SubmitUpdateChainToChannelMap: SubmitUpdateChainToChannelMap{
+			Vaa: vBz,
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}
+
+type IbcGwCompleteTransferAndConvert struct {
 	CompleteTransferAndConvert CompleteTransferAndConvert `json:"complete_transfer_and_convert"`
 }
 
@@ -68,7 +104,7 @@ func IbcGwCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uint16, emi
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 		
-	msg := IbcGwExecute{
+	msg := IbcGwCompleteTransferAndConvert{
 		CompleteTransferAndConvert: CompleteTransferAndConvert{
 			Vaa: vBz,
 		},

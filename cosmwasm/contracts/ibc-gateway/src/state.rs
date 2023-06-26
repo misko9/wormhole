@@ -9,3 +9,7 @@ pub const CURRENT_TRANSFER: Item<TransferInfoResponse> = Item::new("current_tran
 
 // Maps cw20 address -> bank token denom
 pub const CW_DENOMS: Map<String, String> = Map::new("cw_denoms");
+
+pub const CHAIN_TO_CHANNEL_MAP: Map<u16, String> = Map::new("chain_to_channel_map");
+
+pub const VAA_ARCHIVE: Map<&[u8], bool> = Map::new("vaa_archive");

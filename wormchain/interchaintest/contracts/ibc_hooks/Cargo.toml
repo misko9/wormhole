@@ -1,5 +1,5 @@
 [package]
-name = "ibc-receiver"
+name = "ibc-hooks"
 version = "0.1.0"
 authors = ["Wormhole Project Contributors"]
 edition = "2021"

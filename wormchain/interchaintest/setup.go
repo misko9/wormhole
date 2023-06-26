@@ -148,11 +148,6 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 		_ = ic.Close()
 	})
 
-	//channels, err := r.GetChannels(ctx, eRep, chains[0].Config().ChainID)
-	//require.NoError(t, err)
-	//clients, err := r.GetClients(ctx, eRep, chains[0].Config().ChainID)
-	//conns, err := r.GetConnections(ctx, eRep, chains[0].Config().ChainID)
-
 	// Start the relayer
 	err = r.StartRelayer(ctx, eRep, wormGaiaPath, wormOsmoPath)
 	require.NoError(t, err)

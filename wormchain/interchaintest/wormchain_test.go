@@ -38,7 +38,6 @@ func TestWormchain(t *testing.T) {
 	chains := CreateChains(t, *guardians)
 	ctx, r, eRep := BuildInterchain(t, chains)
 
-
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
 	gaia := chains[1].(*cosmos.CosmosChain)
@@ -49,10 +48,6 @@ func TestWormchain(t *testing.T) {
 	wormToOsmoChannel := osmoToWormChannel.Counterparty 
 	gaiaToWormChannel, err := ibc.GetTransferChannel(ctx, r, eRep, gaia.Config().ChainID, wormchain.Config().ChainID)
 	wormToGaiaChannel := gaiaToWormChannel.Counterparty 
-	fmt.Println("Worm to Osmo channel: ", wormToOsmoChannel.ChannelID)
-	fmt.Println("Worm to Gaia channel: ", wormToGaiaChannel.ChannelID)
-	fmt.Println("Osmo to Worm channel: ", osmoToWormChannel.ChannelID)
-	fmt.Println("Gaia to Worm channel: ", gaiaToWormChannel.ChannelID)
 
 	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), wormchain, gaia, osmosis, osmosis)
 	_ = users[0] // Wormchain user
@@ -60,16 +55,13 @@ func TestWormchain(t *testing.T) {
 	osmoUser1 := users[2]
 	osmoUser2 := users[3]
 
-	codeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/cw20_wrapped_2.wasm")
+	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/ibc_hooks.wasm")
 	require.NoError(t, err)
-	fmt.Println("Code id: ", codeId)
+	fmt.Println("IBC hooks code id: ", ibcHooksCodeId)
 
-	_, err = wormchain.SendIBCTransfer(ctx, wormToOsmoChannel.ChannelID, "faucet", ibc.WalletAmount{
-		Address: osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix),
-		Amount: 11122233,
-		Denom: wormchain.Config().Denom,
-	}, ibc.TransferOptions{})
+	ibcHooksContractAddr, err := osmosis.InstantiateContract(ctx, osmoUser1.KeyName, ibcHooksCodeId, "{}", true)
 	require.NoError(t, err)
+	fmt.Println("IBC hooks contract addr: ", ibcHooksContractAddr)
 
 	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
@@ -127,8 +119,18 @@ func TestWormchain(t *testing.T) {
 	completeTransferAndConvertMsg := helpers.IbcGwCompleteTransferAndConvertMsg(t, externalChainId, externalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcGwContractAddr, completeTransferAndConvertMsg)
 
-	// Create and process a contract controlled ibc payload3: Transfers 1.456789 of asset1 from external chain through wormchain to gaia user (eventually to ibcHooksSimd contract)
-	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadContract(t, gaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), []byte("{ContractPayload}"), 1)
+	// Create and process a simple ibc payload3: Transfers 1.987654 of asset1 from external chain through wormchain to osmo user1
+	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, osmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
+	payload3 = helpers.CreatePayload3(wormchain.Config(), 1987654, asset1ContractAddr, asset1ChainID, ibcGwContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
+	completeTransferAndConvertMsg = helpers.IbcGwCompleteTransferAndConvertMsg(t, externalChainId, externalChainEmitterAddr, payload3, guardians)
+	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcGwContractAddr, completeTransferAndConvertMsg)
+
+	// Create and process a contract controlled ibc payload3
+	// Transfers 1.456789 of asset1 from external chain through wormchain to ibc hooks contract addr
+	// IBC hooks is used to route the contract controlled payload to a test contract which forwards tokens to osmo user2
+	//ibcHooksPayload := []byte(fmt.Sprintf("{\"forward_tokens\": { \"recipient\": \"%s\"}}", osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix)))
+	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadContract(t, osmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 1456789, asset1ContractAddr, asset1ChainID, ibcGwContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcGwCompleteTransferAndConvertMsg(t, externalChainId, externalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcGwContractAddr, completeTransferAndConvertMsg)
@@ -152,13 +154,6 @@ func TestWormchain(t *testing.T) {
 	coins, err = osmosis.AllBalances(ctx, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
 	require.NoError(t, err)
 	fmt.Println("Osmo user2 coins: ", coins)
-
-	// Send a bridged token to wormchain using token bridge and deposited to an address
-	// Send a bridged token out of wormchain
-
-	// IBC shim required:
-	// Send a bridged token to wormchain, over ibc to foreign cosmos chain (deposited to addr)
-	// Send a bridged token to wormchain, over ibc to a foreign cosmos chain's contract
 
 	// IBC hooks required:
 	// Send a bridged token from foreign cosmos chain, over ibc to wormchain and out of wormchain (stretch, nice-to-have)

@@ -13,7 +13,7 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/app"
 	bindings "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings/types"
-	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
+	//"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 func TestCreateDenomMsg(t *testing.T) {
@@ -25,8 +25,8 @@ func TestCreateDenomMsg(t *testing.T) {
 	require.NotEmpty(t, reflect)
 
 	// Fund reflect contract with 100 base denom creation fees
-	reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, osmosis, reflect, reflectAmount)
+	//reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, osmosis, reflect, reflectAmount)
 
 	msg := bindings.TokenMsg{CreateDenom: &bindings.CreateDenom{
 		Subdenom: "SUN",
@@ -56,8 +56,8 @@ func TestMintMsg(t *testing.T) {
 	require.NotEmpty(t, reflect)
 
 	// Fund reflect contract with 100 base denom creation fees
-	reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, osmosis, reflect, reflectAmount)
+	//reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, osmosis, reflect, reflectAmount)
 
 	// lucky was broke
 	balances := osmosis.BankKeeper.GetAllBalances(ctx, lucky)
@@ -185,8 +185,8 @@ func TestForceTransfer(t *testing.T) {
 	require.NotEmpty(t, reflect)
 
 	// Fund reflect contract with 100 base denom creation fees
-	reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, osmosis, reflect, reflectAmount)
+	//reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, osmosis, reflect, reflectAmount)
 
 	// lucky was broke
 	balances := osmosis.BankKeeper.GetAllBalances(ctx, lucky)
@@ -238,8 +238,8 @@ func TestBurnMsg(t *testing.T) {
 	require.NotEmpty(t, reflect)
 
 	// Fund reflect contract with 100 base denom creation fees
-	reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, osmosis, reflect, reflectAmount)
+	//reflectAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, osmosis, reflect, reflectAmount)
 
 	// lucky was broke
 	balances := osmosis.BankKeeper.GetAllBalances(ctx, lucky)

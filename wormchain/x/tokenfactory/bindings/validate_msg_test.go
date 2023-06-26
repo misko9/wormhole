@@ -9,7 +9,7 @@ import (
 
 	wasmbinding "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
 	bindings "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings/types"
-	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
+	//"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
 	"github.com/stretchr/testify/require"
 )
@@ -19,8 +19,8 @@ func TestCreateDenom(t *testing.T) {
 	tokenz, ctx := SetupCustomApp(t, actor)
 
 	// Fund actor with 100 base denom creation fees
-	actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, tokenz, actor, actorAmount)
+	//actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, tokenz, actor, actorAmount)
 
 	specs := map[string]struct {
 		createDenom *bindings.CreateDenom
@@ -152,8 +152,8 @@ func TestChangeAdmin(t *testing.T) {
 			tokenz, ctx := SetupCustomApp(t, tokenCreator)
 
 			// Fund actor with 100 base denom creation fees
-			actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-			fundAccount(t, ctx, tokenz, tokenCreator, actorAmount)
+			//actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+			//fundAccount(t, ctx, tokenz, tokenCreator, actorAmount)
 
 
 			var bankBaseKeeper bankkeeper.BaseKeeper
@@ -183,8 +183,8 @@ func TestMint(t *testing.T) {
 	tokenz, ctx := SetupCustomApp(t, creator)
 
 	// Fund actor with 100 base denom creation fees
-	tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, tokenz, creator, tokenCreationFeeAmt)
+	//tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, tokenz, creator, tokenCreationFeeAmt)
 
 	// Create denoms for valid mint tests
 	validDenom := bindings.CreateDenom{
@@ -314,8 +314,8 @@ func TestBurn(t *testing.T) {
 	tokenz, ctx := SetupCustomApp(t, creator)
 
 	// Fund actor with 100 base denom creation fees
-	tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
-	fundAccount(t, ctx, tokenz, creator, tokenCreationFeeAmt)
+	//tokenCreationFeeAmt := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
+	//fundAccount(t, ctx, tokenz, creator, tokenCreationFeeAmt)
 
 	// Create denoms for valid burn tests
 	validDenom := bindings.CreateDenom{

@@ -98,6 +98,36 @@ func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 	return chains
 }
 
+func CreateChains2(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
+	// Create chain factory with wormchain
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
+
+	wormchainConfig.Images[0].Version = "tokenfactory"
+	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
+		{
+			ChainName: "wormchain",
+			ChainConfig: wormchainConfig,
+			NumValidators: &numVals,
+			NumFullNodes: &numFullNodes,
+		},
+		{
+			Name:      "osmosis",
+			Version:   "v15.1.2",
+			ChainConfig: ibc.ChainConfig{
+				ChainID:  "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
+				GasPrices: "1.0uosmo",
+				EncodingConfig: wasm.WasmEncoding(),
+			},
+		},
+	})
+
+	// Get chains from the chain factory
+	chains, err := cf.Chains(t.Name())
+	require.NoError(t, err)
+
+	return chains
+}
+
 func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Relayer, *testreporter.RelayerExecReporter) {
 	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
 	ic := interchaintest.NewInterchain()
@@ -144,6 +174,59 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 
 	// Start the relayer
 	err = r.StartRelayer(ctx, eRep, wormGaiaPath, wormOsmoPath)
+	require.NoError(t, err)
+
+	t.Cleanup(
+		func() {
+			err := r.StopRelayer(ctx, eRep)
+			if err != nil {
+				t.Logf("an error occured while stopping the relayer: %s", err)
+			}
+		},
+	)
+
+	return ctx, r, eRep
+}
+
+func BuildInterchain2(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Relayer, *testreporter.RelayerExecReporter) {
+	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
+	ic := interchaintest.NewInterchain()
+
+	for _, chain := range chains {
+		ic.AddChain(chain)
+	}
+
+	rep := testreporter.NewNopReporter()
+	eRep := rep.RelayerExecReporter(t)
+
+	wormOsmoPath := "wormosmo"
+	ctx := context.Background()
+	client, network := interchaintest.DockerSetup(t)
+	r := interchaintest.NewBuiltinRelayerFactory(ibc.CosmosRly, zaptest.NewLogger(t)).Build(
+		t, client, network)
+	ic.AddRelayer(r, "relayer")
+	ic.AddLink(interchaintest.InterchainLink{
+		Chain1: chains[0], // Wormchain
+		Chain2: chains[1], // Osmosis
+		Relayer: r,
+		Path: wormOsmoPath,
+	})
+
+	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
+		TestName:          t.Name(),
+		Client:            client,
+		NetworkID:         network,
+		SkipPathCreation:  false,
+		BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = ic.Close()
+	})
+
+	// Start the relayer
+	err = r.StartRelayer(ctx, eRep, wormOsmoPath)
 	require.NoError(t, err)
 
 	t.Cleanup(

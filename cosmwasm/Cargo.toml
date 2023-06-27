@@ -12,7 +12,8 @@ members = [
     "packages/cw_transcode",
     "contracts/wormhole-ibc",
     "contracts/wormchain-ibc-receiver",
-    "contracts/ibc-gateway"
+    "contracts/ibc-gateway",
+    "contracts/tokenfactory-ibc"
 ]
 
 # Needed to prevent unwanted feature unification between normal builds and dev builds.  See

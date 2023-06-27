@@ -158,7 +158,6 @@ pub fn convert_cw20_to_bank_and_send(
                 payload.to_string()
             ))?;
             channel + "," + &payload_decoded
-            //channel
         },
         None => channel
     };

@@ -82,15 +82,9 @@ func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 		}},
 		{
 			Name:      "osmosis",
+			Version:   "v15.1.2",
 			ChainConfig: ibc.ChainConfig{
-				ChainID:  "osmosis-1001", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
-				Images: []ibc.DockerImage{
-					{
-						Repository: "osmosis",
-						Version: "local",
-						UidGid: "1025:1025",
-					},
-				},
+				ChainID:  "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
 				GasPrices: "1.0uosmo",
 				EncodingConfig: wasm.WasmEncoding(),
 			},

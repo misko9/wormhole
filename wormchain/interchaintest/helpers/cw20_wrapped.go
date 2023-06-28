@@ -79,3 +79,21 @@ func Cw20ContractInstantiateMsg(
 	return string(msgBz)
 
 }
+
+type Cw20WrappedQueryMsg struct {
+	TokenInfo Cw20TokenInfo `json:"token_info"`
+}
+
+type Cw20TokenInfo struct {}
+
+
+type Cw20WrappedQueryRsp struct {
+	Data *Cw20WrappedQueryRspObj `json:"data,omitempty"`
+}
+
+type Cw20WrappedQueryRspObj struct {
+	Name string `json:"name"`
+	Symbol string `json:"symbol"`
+	Decimals uint8 `json:"decimals"`
+	TotalSupply string `json:"total_supply"`
+}

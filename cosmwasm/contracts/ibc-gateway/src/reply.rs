@@ -166,7 +166,7 @@ pub fn convert_cw20_to_bank_and_send(
         channel_id: channel_entry, 
         to_address: recipient, 
         amount: amount, 
-        timeout: IbcTimeout::with_timestamp(env.block.time.plus_days(1)),
+        timeout: IbcTimeout::with_timestamp(env.block.time.plus_minutes(2)),
     });
 
     Ok(response)

@@ -120,3 +120,32 @@ func TbRegisterForeignAsset(t *testing.T, tokenAddr string, chainID uint16, emit
 
 	return msgBz
 }
+
+type TbQueryMsg struct {
+	WrappedRegistry WrappedRegistry `json:"wrapped_registry"`
+}
+
+type WrappedRegistry struct {
+	Chain uint16 `json:"chain"`
+	Address []byte `json:"address"`
+}
+
+func CreateCW20Query(t *testing.T, chainID uint16, address string) TbQueryMsg {
+	addressBz := vaa.LeftPadBytes(address, 32)
+	msg := TbQueryMsg{
+		WrappedRegistry: WrappedRegistry{
+			Chain: chainID,
+			Address: addressBz.Bytes(),
+		},
+	}
+	return msg
+}
+
+
+type TbQueryRsp struct {
+	Data *TbQueryRspObj `json:"data,omitempty"`
+}
+
+type TbQueryRspObj struct {
+	Address string `json:"address"`
+}

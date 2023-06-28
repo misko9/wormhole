@@ -218,4 +218,5 @@ replace (
 	github.com/vedhavyas/go-subkey => github.com/strangelove-ventures/go-subkey v1.0.7
 	github.com/wormhole-foundation/wormchain => ../
 	github.com/wormhole-foundation/wormchain/sdk => ../sdk
+
 )

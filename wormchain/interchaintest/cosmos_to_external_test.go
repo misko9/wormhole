@@ -107,6 +107,15 @@ func TestCosmosToExternal(t *testing.T) {
 	wormGaiaAllowlistMsg := helpers.SubmitUpdateChainToChannelMapMsg(t, GaiaChainID, wormToGaiaChannel.ChannelID, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcGwContractAddr, wormGaiaAllowlistMsg)
 
+	var queryChannelRsp helpers.IbcTranslatorQueryRspMsg
+	queryChannelMsg := helpers.IbcTranslatorQueryMsg{IbcChannel: helpers.QueryIbcChannel{ChainID: OsmoChainID}}
+	wormchain.QueryContract(ctx, ibcGwContractAddr, queryChannelMsg, &queryChannelRsp)
+	fmt.Println("Osmo channel: ", queryChannelRsp.Data.Channel)
+
+	queryChannelMsg = helpers.IbcTranslatorQueryMsg{IbcChannel: helpers.QueryIbcChannel{ChainID: GaiaChainID}}
+	wormchain.QueryContract(ctx, ibcGwContractAddr, queryChannelMsg, &queryChannelRsp)
+	fmt.Println("Gaia channel: ", queryChannelRsp.Data.Channel)
+	
 	// Create and process a simple ibc payload3: Transfers 1.231245 of asset1 from external chain through wormchain to gaia user
 	// Add relayer fee
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)

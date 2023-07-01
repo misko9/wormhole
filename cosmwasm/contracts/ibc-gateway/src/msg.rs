@@ -63,7 +63,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(ChannelResponse)]
-    ChainChannel { chain_id: u16 }
+    IbcChannel { chain_id: u16 }
 }
 
 #[cw_serde]

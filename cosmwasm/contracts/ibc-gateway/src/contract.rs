@@ -3,17 +3,18 @@ use cosmwasm_std::entry_point;
 
 use anyhow::Context;
 use cosmwasm_std::{
-    DepsMut, Empty, Env,
-    MessageInfo, Reply, Response,
+    to_binary, Binary, Deps, DepsMut, Empty, Env,
+    MessageInfo, Reply, Response, StdResult,
 };
 
 use crate::{
     bindings::TokenFactoryMsg,
-    msg::{ExecuteMsg, InstantiateMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
     state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
     reply::{handle_complete_transfer_reply, handle_create_denom_reply},
     execute::{complete_transfer_and_convert, simple_convert_and_transfer, 
         contract_controlled_convert_and_transfer, submit_update_chain_to_channel_map},
+    query::query_ibc_channel,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -82,4 +83,12 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<TokenFactor
 
     // other cases probably from calling into the burn/mint messages and token factory methods
     Ok(Response::default())
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::IbcChannel { chain_id } => 
+            to_binary(&query_ibc_channel(deps, chain_id)?),
+    }
 }

@@ -207,3 +207,19 @@ func CreateIbcTranslatorExecuteContractControlled(t *testing.T, chainID uint16, 
 
 	return string(msgBz)
 }
+
+type IbcTranslatorQueryMsg struct {
+	IbcChannel QueryIbcChannel `json:"ibc_channel"`
+}
+
+type QueryIbcChannel struct {
+	ChainID uint16 `json:"chain_id"`
+}
+
+type IbcTranslatorQueryRspMsg struct {
+	Data *IbcTranslatorQueryRspObj `json:"data"`
+}
+
+type IbcTranslatorQueryRspObj struct {
+	Channel string `json:"channel,omitempty"`
+}

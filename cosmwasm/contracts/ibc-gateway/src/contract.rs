@@ -12,8 +12,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
     state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
     reply::{handle_complete_transfer_reply, handle_create_denom_reply},
-    execute::{complete_transfer_and_convert, simple_convert_and_transfer, 
-        contract_controlled_convert_and_transfer, submit_update_chain_to_channel_map},
+    execute::{complete_transfer_and_convert, convert_and_transfer, submit_update_chain_to_channel_map, TransferType},
     query::query_ibc_channel,
 };
 
@@ -58,13 +57,13 @@ pub fn execute(
             chain,
             fee,
             nonce,
-        } => simple_convert_and_transfer(deps, info, env, recipient, chain, fee, nonce),
+        } =>  convert_and_transfer(deps, info, env, recipient, chain, TransferType::Simple{ fee }, nonce),
         ExecuteMsg::ContractControlledConvertAndTransfer {
             contract,
             chain,
             payload,
             nonce,
-        } => contract_controlled_convert_and_transfer(deps, info, env, contract, chain, payload, nonce),
+        } => convert_and_transfer(deps, info, env, contract, chain, TransferType::ContractControlled { payload }, nonce),
         ExecuteMsg::SubmitUpdateChainToChannelMap { vaa } 
             => submit_update_chain_to_channel_map(deps, env, info, vaa),
     }

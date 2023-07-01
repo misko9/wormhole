@@ -27,6 +27,11 @@ use crate::{
     bindings::{TokenFactoryMsg, TokenMsg},
 };
 
+pub enum TransferType {
+    Simple { fee: Uint128 },
+    ContractControlled { payload: Binary },
+}
+
 /// Calls into the wormhole token bridge to complete the payload3 transfer.
 pub fn complete_transfer_and_convert(
     deps: DepsMut,
@@ -93,13 +98,13 @@ pub fn complete_transfer_and_convert(
         ))
 }
 
-pub fn simple_convert_and_transfer(
+pub fn convert_and_transfer(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
     recipient: Binary,
     chain: u16,
-    fee: Uint128,
+    transfer_type: TransferType,
     nonce: u32,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // load the token bridge contract address
@@ -135,86 +140,35 @@ pub fn simple_convert_and_transfer(
     }));
 
     // 3. token_bridge::initiate_transfer -- the cw20 tokens will be either burned or transferred to the token_bridge
-    let initiate_transfer_msg = to_binary(&TokenBridgeExecuteMsg::InitiateTransfer {
-        asset: Asset {
-            info: AssetInfo::Token {
-                contract_addr: cw20_contract_addr,
+    let token_bridge_transfer: TokenBridgeExecuteMsg = match transfer_type {
+        TransferType::Simple { fee } => TokenBridgeExecuteMsg::InitiateTransfer { 
+            asset: Asset {
+                info: AssetInfo::Token {
+                    contract_addr: cw20_contract_addr,
+                },
+                amount: bridging_coin.amount,
             },
-            amount: bridging_coin.amount,
+            recipient_chain: chain,
+            recipient,
+            fee,
+            nonce,
         },
-        recipient_chain: chain,
-        recipient,
-        fee,
-        nonce,
-    })
-    .context("could not serialize token bridge initiate_transfer msg")?;
-    response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: token_bridge_contract,
-        msg: initiate_transfer_msg,
-        funds: vec![],
-    }));
-
-    Ok(response)
-}
-
-
-pub fn contract_controlled_convert_and_transfer(
-    deps: DepsMut,
-    info: MessageInfo,
-    env: Env,
-    contract: Binary,
-    chain: u16,
-    payload: Binary,
-    nonce: u32,
-) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-
-    // load the token bridge contract address
-    let token_bridge_contract = TOKEN_BRIDGE_CONTRACT
-        .load(deps.storage)
-        .context("could not load token bridge contract address")?;
-
-    ensure!(info.funds.len() == 1, "no bridging coin included");
-    let bridging_coin = info.funds[0].clone();
-    let cw20_contract_addr = parse_bank_token_factory_contract(deps, env, bridging_coin.clone())?;
-
-    // batch calls together
-    let mut response: Response<TokenFactoryMsg> = Response::new();
-
-    // 1. tokenfactorymsg::burn for the bank tokens
-    response = response.add_message(TokenMsg::BurnTokens {
-        denom: bridging_coin.denom.clone(),
-        amount: bridging_coin.amount.u128(),
-        burn_from_address: "".to_string(),
-    });
-
-    // 2. cw20::increaseAllowance to the contract address for the token bridge to spend the amount of tokens
-    let increase_allowance_msg = to_binary(&Cw20WrappedExecuteMsg::IncreaseAllowance {
-        spender: token_bridge_contract.clone(),
-        amount: bridging_coin.amount,
-        expires: None,
-    })
-    .context("could not serialize cw20 increase_allowance msg")?;
-    response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cw20_contract_addr.clone(),
-        msg: increase_allowance_msg,
-        funds: vec![],
-    }));
-
-    // 3. token_bridge::initiate_transfer -- the cw20 tokens will be either burned or transferred to the token_bridge
-    let initiate_transfer_msg = to_binary(&TokenBridgeExecuteMsg::InitiateTransferWithPayload {
-        asset: Asset {
-            info: AssetInfo::Token {
+        TransferType::ContractControlled { payload } => TokenBridgeExecuteMsg::InitiateTransferWithPayload {
+            asset: Asset {
+                info: AssetInfo::Token {
                 contract_addr: cw20_contract_addr,
+                },
+                amount: bridging_coin.amount,
             },
-            amount: bridging_coin.amount,
+            recipient_chain: chain,
+            recipient,
+            fee: Uint128::from(0u128),
+            payload,
+            nonce,
         },
-        recipient_chain: chain,
-        recipient: contract,
-        fee: Uint128::from(0u128),
-        payload,
-        nonce,
-    })
-    .context("could not serialize token bridge initiate_transfer msg")?;
+    };
+    let initiate_transfer_msg = to_binary(&token_bridge_transfer)
+        .context("could not serialize token bridge initiate_transfer msg")?;
     response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_bridge_contract,
         msg: initiate_transfer_msg,

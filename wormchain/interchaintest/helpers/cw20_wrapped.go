@@ -86,6 +86,14 @@ type Cw20WrappedQueryMsg struct {
 
 type Cw20TokenInfo struct {}
 
+type Cw20WrappedBalanceQueryMsg struct {
+	Balance Cw20BalanceQuery `json:"balance"`
+}
+
+type Cw20BalanceQuery struct {
+	Address string `json:"address"`
+}
+
 
 type Cw20WrappedQueryRsp struct {
 	Data *Cw20WrappedQueryRspObj `json:"data,omitempty"`
@@ -96,4 +104,12 @@ type Cw20WrappedQueryRspObj struct {
 	Symbol string `json:"symbol"`
 	Decimals uint8 `json:"decimals"`
 	TotalSupply string `json:"total_supply"`
+}
+
+type Cw20WrappedBalanceQueryRsp struct {
+	Data *Cw20WrappedBalanceQueryRspObj `json:"data,omitempty"`
+}
+
+type Cw20WrappedBalanceQueryRspObj struct {
+	Balance string `json:"balance"`
 }

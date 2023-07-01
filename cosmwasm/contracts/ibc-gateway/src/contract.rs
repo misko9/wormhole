@@ -6,14 +6,14 @@ use cosmwasm_std::{
     DepsMut, Empty, Env,
     MessageInfo, Reply, Response,
 };
-use cw20::Cw20ReceiveMsg;
 
 use crate::{
     bindings::TokenFactoryMsg,
     msg::{ExecuteMsg, InstantiateMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
     state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
     reply::{handle_complete_transfer_reply, handle_create_denom_reply},
-    execute::{complete_transfer_and_convert, convert_and_transfer, convert_bank_to_cw20, submit_update_chain_to_channel_map}
+    execute::{complete_transfer_and_convert, simple_convert_and_transfer, 
+        contract_controlled_convert_and_transfer, submit_update_chain_to_channel_map},
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -52,19 +52,18 @@ pub fn execute(
         ExecuteMsg::CompleteTransferAndConvert { vaa } => {
             complete_transfer_and_convert(deps, env, info, vaa)
         }
-        ExecuteMsg::ConvertAndTransfer {
-            recipient_chain,
+        ExecuteMsg::SimpleConvertAndTransfer {
             recipient,
+            chain,
             fee,
-        } => convert_and_transfer(deps, info, env, recipient_chain, recipient, fee),
-        ExecuteMsg::ConvertBankToCw20 {} => convert_bank_to_cw20(deps, info, env),
-        
-        ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender,
-            amount,
-            msg,
-        }) => Ok(Response::new()),
-
+            nonce,
+        } => simple_convert_and_transfer(deps, info, env, recipient, chain, fee, nonce),
+        ExecuteMsg::ContractControlledConvertAndTransfer {
+            contract,
+            chain,
+            payload,
+            nonce,
+        } => contract_controlled_convert_and_transfer(deps, info, env, contract, chain, payload, nonce),
         ExecuteMsg::SubmitUpdateChainToChannelMap { vaa } 
             => submit_update_chain_to_channel_map(deps, env, info, vaa),
     }

@@ -1,25 +1,15 @@
 #[cfg(not(feature = "library"))]
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    coin, from_binary, Binary, BankMsg, Deps, DepsMut, Env, IbcTimeout, IbcMsg, Reply, Response, SubMsg,
+    coin, from_binary, Binary, Deps, DepsMut, Env, IbcTimeout, IbcMsg, Reply, Response, SubMsg,
 };
 use cw_token_bridge::msg::{
     CompleteTransferResponse,
 };
-use std::str;
-use cw_wormhole::byte_utils::ByteUtils;
-use crate::state::CHAIN_TO_CHANNEL_MAP;
 use crate::{
-    bindings::CreateDenomResponse,
-    execute::contract_addr_from_base58,
-    msg::CREATE_DENOM_REPLY_ID,
-};
-
-
-use crate::{
-    msg::GatewayIbcTokenBridgePayload,
-    state::{CURRENT_TRANSFER, CW_DENOMS},
     bindings::{TokenFactoryMsg, TokenMsg},
+    msg::{CREATE_DENOM_REPLY_ID, GatewayIbcTokenBridgePayload},
+    state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS},
 };
 
 pub fn handle_complete_transfer_reply(

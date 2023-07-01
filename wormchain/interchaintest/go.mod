@@ -11,8 +11,10 @@ require (
 )
 
 require (
+	github.com/btcsuite/btcd/btcutil v1.1.3
+	github.com/cosmos/ibc-go/v4 v4.3.0
 	github.com/ethereum/go-ethereum v1.11.6
-	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230622205228-443173428ad0
+	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230701004017-701263d86262
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20230614161948-7f6213019abf
 )
@@ -54,7 +56,6 @@ require (
 	github.com/cosmos/gogoproto v1.4.6 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/cosmos/iavl v0.19.5 // indirect
-	github.com/cosmos/ibc-go/v4 v4.3.0 // indirect
 	github.com/cosmos/interchain-security v1.0.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.2 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
@@ -211,6 +212,8 @@ replace (
 	//github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole-2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
+	//github.com/strangelove-ventures/interchaintest/v4 => ../../../../strangelove-ventures/interchaintest_v4
+
 	// pin version! 126854af5e6d has issues with the store so that queries fail
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// use informal tendermint
@@ -218,5 +221,4 @@ replace (
 	github.com/vedhavyas/go-subkey => github.com/strangelove-ventures/go-subkey v1.0.7
 	github.com/wormhole-foundation/wormchain => ../
 	github.com/wormhole-foundation/wormchain/sdk => ../sdk
-
 )

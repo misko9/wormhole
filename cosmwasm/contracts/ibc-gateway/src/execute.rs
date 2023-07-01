@@ -1,12 +1,11 @@
 #[cfg(not(feature = "library"))]
 use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
-    coin, from_binary, to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Empty, Event,
-    MessageInfo, QueryRequest, Reply, Response, SubMsg, StdResult, StdError, Uint128, WasmMsg, WasmQuery,
+    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Event,
+    MessageInfo, QueryRequest, Response, SubMsg, Uint128, WasmMsg, WasmQuery,
 };
-use cw20::Cw20ExecuteMsg;
 use cw_token_bridge::msg::{
-    Asset, AssetInfo, CompleteTransferResponse, ExecuteMsg as TokenBridgeExecuteMsg,
+    Asset, AssetInfo, ExecuteMsg as TokenBridgeExecuteMsg,
     QueryMsg as TokenBridgeQueryMsg, TransferInfoResponse,
 };
 use cw_wormhole::{
@@ -17,18 +16,15 @@ use cw_wormhole::{
 
 use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
 use wormhole_sdk::{
-    vaa::{Body, Header},
     ibc_shim::{Action, GovernancePacket},
     Chain,
 };
-use serde_wormhole::RawMessage;
-use wormhole_bindings::WormholeQuery;
 use std::str;
 
 use crate::{
-    msg::{GatewayIbcTokenBridgePayload, COMPLETE_TRANSFER_REPLY_ID},
+    msg::COMPLETE_TRANSFER_REPLY_ID,
     state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT, VAA_ARCHIVE, CHAIN_TO_CHANNEL_MAP, WORMHOLE_CONTRACT},
-    bindings::TokenFactoryMsg,
+    bindings::{TokenFactoryMsg, TokenMsg},
 };
 
 /// Calls into the wormhole token bridge to complete the payload3 transfer.
@@ -97,16 +93,17 @@ pub fn complete_transfer_and_convert(
         ))
 }
 
-pub fn convert_and_transfer(
+pub fn simple_convert_and_transfer(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    recipient_chain: u16,
     recipient: Binary,
+    chain: u16,
     fee: Uint128,
+    nonce: u32,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     // load the token bridge contract address
-    /*let token_bridge_contract = TOKEN_BRIDGE_CONTRACT
+    let token_bridge_contract = TOKEN_BRIDGE_CONTRACT
         .load(deps.storage)
         .context("could not load token bridge contract address")?;
 
@@ -115,11 +112,13 @@ pub fn convert_and_transfer(
     let cw20_contract_addr = parse_bank_token_factory_contract(deps, env, bridging_coin.clone())?;
 
     // batch calls together
-    let mut response: Response<WormchainMsg> = Response::new();
+    let mut response: Response<TokenFactoryMsg> = Response::new();
 
-    // 1. seimsg::burn for the bank tokens
-    response = response.add_message(WormchainMsg::BurnTokens {
-        amount: bridging_coin.clone(),
+    // 1. tokenfactorymsg::burn for the bank tokens
+    response = response.add_message(TokenMsg::BurnTokens {
+        denom: bridging_coin.denom.clone(),
+        amount: bridging_coin.amount.u128(),
+        burn_from_address: "".to_string(),
     });
 
     // 2. cw20::increaseAllowance to the contract address for the token bridge to spend the amount of tokens
@@ -143,10 +142,10 @@ pub fn convert_and_transfer(
             },
             amount: bridging_coin.amount,
         },
-        recipient_chain,
+        recipient_chain: chain,
         recipient,
         fee,
-        nonce: 0,
+        nonce,
     })
     .context("could not serialize token bridge initiate_transfer msg")?;
     response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -155,50 +154,77 @@ pub fn convert_and_transfer(
         funds: vec![],
     }));
 
-    Ok(response)*/
-    Ok(Response::new())
+    Ok(response)
 }
 
 
-pub fn convert_bank_to_cw20(
+pub fn contract_controlled_convert_and_transfer(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
+    contract: Binary,
+    chain: u16,
+    payload: Binary,
+    nonce: u32,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-    // bank tokens sent to the contract will be in info.funds
-    /*ensure!(
-        info.funds.len() == 1,
-        "info.funds should contain only 1 coin"
-    );
 
-    let converting_coin = info.funds[0].clone();
-    let cw20_contract_addr = parse_bank_token_factory_contract(deps, env, converting_coin.clone())?;
+    // load the token bridge contract address
+    let token_bridge_contract = TOKEN_BRIDGE_CONTRACT
+        .load(deps.storage)
+        .context("could not load token bridge contract address")?;
+
+    ensure!(info.funds.len() == 1, "no bridging coin included");
+    let bridging_coin = info.funds[0].clone();
+    let cw20_contract_addr = parse_bank_token_factory_contract(deps, env, bridging_coin.clone())?;
 
     // batch calls together
-    let mut response: Response<WormchainMsg> = Response::new();
+    let mut response: Response<TokenFactoryMsg> = Response::new();
 
-    // 1. seimsg::burn for the bank tokens
-    response = response.add_message(WormchainMsg::BurnTokens {
-        amount: converting_coin.clone(),
+    // 1. tokenfactorymsg::burn for the bank tokens
+    response = response.add_message(TokenMsg::BurnTokens {
+        denom: bridging_coin.denom.clone(),
+        amount: bridging_coin.amount.u128(),
+        burn_from_address: "".to_string(),
     });
 
-    // 2. cw20::transfer to send back to the msg.sender
-    let transfer_msg = to_binary(&Cw20ExecuteMsg::Transfer {
-        recipient: info.sender.to_string(),
-        amount: converting_coin.amount,
+    // 2. cw20::increaseAllowance to the contract address for the token bridge to spend the amount of tokens
+    let increase_allowance_msg = to_binary(&Cw20WrappedExecuteMsg::IncreaseAllowance {
+        spender: token_bridge_contract.clone(),
+        amount: bridging_coin.amount,
+        expires: None,
     })
-    .context("could not serialize cw20::transfer msg")?;
+    .context("could not serialize cw20 increase_allowance msg")?;
     response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cw20_contract_addr,
-        msg: transfer_msg,
+        contract_addr: cw20_contract_addr.clone(),
+        msg: increase_allowance_msg,
         funds: vec![],
     }));
 
-    Ok(response)*/
-    Ok(Response::new())
+    // 3. token_bridge::initiate_transfer -- the cw20 tokens will be either burned or transferred to the token_bridge
+    let initiate_transfer_msg = to_binary(&TokenBridgeExecuteMsg::InitiateTransferWithPayload {
+        asset: Asset {
+            info: AssetInfo::Token {
+                contract_addr: cw20_contract_addr,
+            },
+            amount: bridging_coin.amount,
+        },
+        recipient_chain: chain,
+        recipient: contract,
+        fee: Uint128::from(0u128),
+        payload,
+        nonce,
+    })
+    .context("could not serialize token bridge initiate_transfer msg")?;
+    response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_bridge_contract,
+        msg: initiate_transfer_msg,
+        funds: vec![],
+    }));
+
+    Ok(response)
 }
 
-/*pub fn parse_bank_token_factory_contract(
+pub fn parse_bank_token_factory_contract(
     deps: DepsMut,
     env: Env,
     coin: Coin,
@@ -228,7 +254,7 @@ pub fn convert_bank_to_cw20(
     );
 
     Ok(cw20_contract_addr)
-}*/
+}
 
 pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, anyhow::Error> {
     let decoded_addr = bs58::decode(subdenom)
@@ -244,7 +270,7 @@ pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, a
 pub fn submit_update_chain_to_channel_map(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     vaa: Binary,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
 
@@ -253,24 +279,13 @@ pub fn submit_update_chain_to_channel_map(
         .load(deps.storage)
         .context("could not load token bridge contract address")?;
 
-    //let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-    let wrapped_vaa: Result<ParsedVAA, StdError> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-    //let vaa = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: wormhole_contract,
         msg: to_binary(&WormholeQueryMsg::VerifyVAA {
             vaa: vaa.clone(),
             block_time: env.block.time.seconds(),
         })?,
-    }));
-
-    let vaa = match wrapped_vaa {
-        Ok(parsedVAA) => parsedVAA, 
-        Err(error) => {
-            return Ok(Response::new()
-                .add_attribute("error", "parsed vaa")
-                .add_attribute("err_output", error.to_string()));
-        }
-    };
+    }))?;
 
     // validate this is a governance VAA
     ensure!(

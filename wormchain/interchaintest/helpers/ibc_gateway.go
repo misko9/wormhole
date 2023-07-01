@@ -167,3 +167,43 @@ func CreateGatewayIbcTokenBridgePayloadContract(t *testing.T, chainID uint16, co
 
 	return msgBz
 }
+
+type GatewayIbcExecuteSimple struct {
+	Msg Simple `json:"simple_convert_and_transfer"`
+}
+
+// Temporary method for test the contract interface before the middleware is available
+func CreateIbcTranslatorExecuteSimple(t *testing.T, chainID uint16, recipient string, fee uint64, nonce uint32) string {
+	msg :=  GatewayIbcExecuteSimple {
+		Msg: Simple{
+			Chain: chainID,
+			Recipient: []byte(recipient),
+			Fee: fmt.Sprint(fee),
+			Nonce: nonce,
+		},
+	}
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}
+
+type GatewayIbcExecuteContractControlled struct {
+	Msg ContractControlled `json:"contract_controlled_convert_and_transfer"`
+}
+
+// Temporary method for testing the contract interface before the middleware is available
+func CreateIbcTranslatorExecuteContractControlled(t *testing.T, chainID uint16, contract string, payload []byte, nonce uint32) string {
+	msg := GatewayIbcExecuteContractControlled{
+		Msg: ContractControlled{
+			Chain: chainID,
+			Contract: []byte(contract),
+			Payload: payload,
+			Nonce: nonce,
+		},
+	}
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}

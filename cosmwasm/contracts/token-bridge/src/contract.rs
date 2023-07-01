@@ -484,7 +484,6 @@ fn handle_attest_meta(
         })
     };
     wrapped_asset_seq(deps.storage, meta.token_chain).save(&token_address, &sequence)?;
-    //Ok(Response::new())
     Ok(Response::new().add_message(message))
 }
 

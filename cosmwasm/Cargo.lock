@@ -1011,7 +1011,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ibc-gateway"
+name = "ibc-translator"
 version = "0.1.0"
 dependencies = [
  "anyhow",

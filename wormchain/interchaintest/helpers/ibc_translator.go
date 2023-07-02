@@ -13,13 +13,13 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-type IbcGwInstantiateMsg struct {
+type IbcTranslatorInstantiateMsg struct {
 	TokenBridgeContract string `json:"token_bridge_contract"`
 	CoreContract string `json:"wormhole_contract"`
 }
 
-func IbcGwContractInstantiateMsg(t *testing.T, tbContract string, coreContract string) string {
-	msg := IbcGwInstantiateMsg{
+func IbcTranslatorContractInstantiateMsg(t *testing.T, tbContract string, coreContract string) string {
+	msg := IbcTranslatorInstantiateMsg{
 		TokenBridgeContract: tbContract,
 		CoreContract: coreContract,
 	}
@@ -29,7 +29,7 @@ func IbcGwContractInstantiateMsg(t *testing.T, tbContract string, coreContract s
 	return string(msgBz)
 }
 
-type IbcGwSubmitUpdateChainToChannelMap struct {
+type IbcTranslatorSubmitUpdateChainToChannelMap struct {
 	SubmitUpdateChainToChannelMap SubmitUpdateChainToChannelMap `json:"submit_update_chain_to_channel_map"`
 }
 
@@ -51,7 +51,7 @@ func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, all
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 		
-	msg := IbcGwSubmitUpdateChainToChannelMap{
+	msg := IbcTranslatorSubmitUpdateChainToChannelMap{
 		SubmitUpdateChainToChannelMap: SubmitUpdateChainToChannelMap{
 			Vaa: vBz,
 		},
@@ -63,7 +63,7 @@ func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, all
 	return string(msgBz)
 }
 
-type IbcGwCompleteTransferAndConvert struct {
+type IbcTranslatorCompleteTransferAndConvert struct {
 	CompleteTransferAndConvert CompleteTransferAndConvert `json:"complete_transfer_and_convert"`
 }
 
@@ -93,7 +93,7 @@ func CreatePayload3(cfg ibc.ChainConfig, amount uint64, tokenAddr string, tokenC
 	return payload.Bytes()
 }
 
-func IbcGwCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uint16, emitterAddr string, payload []byte, guardians *guardians.ValSet) string {
+func IbcTranslatorCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uint16, emitterAddr string, payload []byte, guardians *guardians.ValSet) string {
 	emitterBz := [32]byte{}
 	eIndex := 32
 	for i := len(emitterAddr); i > 0; i-- {
@@ -104,7 +104,7 @@ func IbcGwCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uint16, emi
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 		
-	msg := IbcGwCompleteTransferAndConvert{
+	msg := IbcTranslatorCompleteTransferAndConvert{
 		CompleteTransferAndConvert: CompleteTransferAndConvert{
 			Vaa: vBz,
 		},
@@ -168,13 +168,13 @@ func CreateGatewayIbcTokenBridgePayloadContract(t *testing.T, chainID uint16, co
 	return msgBz
 }
 
-type GatewayIbcExecuteSimple struct {
+type IbcTranslatorExecuteSimple struct {
 	Msg Simple `json:"simple_convert_and_transfer"`
 }
 
 // Temporary method for test the contract interface before the middleware is available
 func CreateIbcTranslatorExecuteSimple(t *testing.T, chainID uint16, recipient string, fee uint64, nonce uint32) string {
-	msg :=  GatewayIbcExecuteSimple {
+	msg :=  IbcTranslatorExecuteSimple {
 		Msg: Simple{
 			Chain: chainID,
 			Recipient: []byte(recipient),
@@ -188,13 +188,13 @@ func CreateIbcTranslatorExecuteSimple(t *testing.T, chainID uint16, recipient st
 	return string(msgBz)
 }
 
-type GatewayIbcExecuteContractControlled struct {
+type IbcTranslatorExecuteContractControlled struct {
 	Msg ContractControlled `json:"contract_controlled_convert_and_transfer"`
 }
 
 // Temporary method for testing the contract interface before the middleware is available
 func CreateIbcTranslatorExecuteContractControlled(t *testing.T, chainID uint16, contract string, payload []byte, nonce uint32) string {
-	msg := GatewayIbcExecuteContractControlled{
+	msg := IbcTranslatorExecuteContractControlled{
 		Msg: ContractControlled{
 			Chain: chainID,
 			Contract: []byte(contract),

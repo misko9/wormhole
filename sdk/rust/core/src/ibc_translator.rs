@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Chain;
 
-/// Represents a governance action targeted at the wormchain ibc shim contract.
+/// Represents a governance action targeted at the wormchain ibc translator contract.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Action {
     #[serde(rename = "1")]
@@ -15,10 +15,10 @@ pub enum Action {
     },
 }
 
-// MODULE = "IbcShim"
-pub const MODULE: [u8; 32] = *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00IbcShim";
+// MODULE = "IbcTranslator"
+pub const MODULE: [u8; 32] = *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00IbcTranslator";
 
-/// Represents the payload for a governance VAA targeted at the wormchain ibc shim contract.
+/// Represents the payload for a governance VAA targeted at the wormchain ibc translator contract.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GovernancePacket {
     /// Describes the chain on which the governance action should be carried out.
@@ -38,7 +38,7 @@ mod governance_packet_impl {
     };
 
     use crate::{
-        ibc_shim::{Action, GovernancePacket, MODULE},
+        ibc_translator::{Action, GovernancePacket, MODULE},
         Chain,
     };
 
@@ -64,7 +64,7 @@ mod governance_packet_impl {
                 Ok(Module)
             } else {
                 Err(Error::custom(
-                    "invalid governance module, expected \"IbcShim\"",
+                    "invalid governance module, expected \"IbcTranslator\"",
                 ))
             }
         }
@@ -277,10 +277,10 @@ mod test {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x04, // sequence
             0x00, 0x00, 0x00, 0x00, 0x01, 0x3c, 0x1b, 0xfa, // consistency
-            0x00, //  module = "IbcShim"
+            0x00, //  module = "IbcTranslator"
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63,
-            0x53, 0x68, 0x69, 0x6d, // action (IbcReceiverActionUpdateChannelChain)
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x6c,
+            0x61, 0x74, 0x6f, 0x72, // action (IbcReceiverActionUpdateChannelChain)
             0x01, // target chain_id (unset)
             0x00, 0x00, // IBC channel_id for the mapping ("channel-0")
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

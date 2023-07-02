@@ -39,7 +39,7 @@ type SubmitUpdateChainToChannelMap struct {
 
 func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, allowlistChannel string, guardians *guardians.ValSet) string {
 	payload := new(bytes.Buffer)
-	module := vaa.LeftPadBytes("IbcShim", 32)
+	module := vaa.LeftPadBytes("IbcTranslator", 32)
 	payload.Write(module.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, uint8(1))
 	vaa.MustWrite(payload, binary.BigEndian, uint16(0))

@@ -48,9 +48,7 @@ pub fn handle_complete_transfer_reply(
     match payload {
         GatewayIbcTokenBridgePayload::Simple { chain, recipient, fee: _, nonce: _ } => {
             let recipient_decoded = String::from_utf8(recipient.to_vec()).context(format!(
-                "failed to convert {} to utf8 string",
-                recipient.to_string()
-            ))?;
+                "failed to convert {recipient} to utf8 string"))?;
             convert_cw20_to_bank_and_send(
                 deps,
                 env,
@@ -63,9 +61,7 @@ pub fn handle_complete_transfer_reply(
         },
         GatewayIbcTokenBridgePayload::ContractControlled { chain, contract, payload, nonce: _ } => {
             let contract_decoded = String::from_utf8(contract.to_vec()).context(format!(
-                "failed to convert {} to utf8 string",
-                contract.to_string()
-            ))?;
+                "failed to convert {contract} to utf8 string"))?;
             convert_cw20_to_bank_and_send(
                 deps,
                 env,
@@ -95,7 +91,7 @@ pub fn convert_cw20_to_bank_and_send(
 
     deps.api
         .addr_validate(&contract_addr)
-        .context(format!("invalid contract address {}", contract_addr))?;
+        .context(format!("invalid contract address {contract_addr}"))?;
 
     // convert contract address into base64
     let subdenom = contract_addr_to_base58(deps.as_ref(), contract_addr.clone())?;
@@ -114,7 +110,7 @@ pub fn convert_cw20_to_bank_and_send(
         // call into token factory to create the denom
         let create_denom = SubMsg::reply_on_success(
             TokenMsg::CreateDenom { 
-                subdenom: subdenom.clone(), 
+                subdenom, 
                 metadata: None,
             },
             CREATE_DENOM_REPLY_ID,
@@ -130,7 +126,7 @@ pub fn convert_cw20_to_bank_and_send(
     // add calls to mint and send bank tokens
     response = response.add_message(TokenMsg::MintTokens {
         denom: tokenfactory_denom.clone(),
-        amount: amount.clone(),
+        amount,
         mint_to_address: env.contract.address.to_string(),
     });
 
@@ -144,9 +140,7 @@ pub fn convert_cw20_to_bank_and_send(
     let channel_entry = match payload {
         Some(payload) => {
             let payload_decoded = String::from_utf8(payload.to_vec()).context(format!(
-                "failed to convert {} to utf8 string",
-                payload.to_string()
-            ))?;
+                "failed to convert {payload} to utf8 string"))?;
             channel + "," + &payload_decoded
         },
         None => channel
@@ -155,7 +149,7 @@ pub fn convert_cw20_to_bank_and_send(
     response = response.add_message( IbcMsg::Transfer { 
         channel_id: channel_entry, 
         to_address: recipient, 
-        amount: amount, 
+        amount, 
         timeout: IbcTimeout::with_timestamp(env.block.time.plus_minutes(2)),
     });
 
@@ -166,9 +160,7 @@ pub fn convert_cw20_to_bank_and_send(
 fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
     // convert the contract address into bytes
     let contract_addr_bytes = deps.api.addr_canonicalize(&contract_addr).context(format!(
-        "could not canonicalize contract address {}",
-        contract_addr
-    ))?;
+        "could not canonicalize contract address {contract_addr}"))?;
     let base_58_addr = bs58::encode(contract_addr_bytes.as_slice()).into_string();
     Ok(base_58_addr)
 }

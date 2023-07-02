@@ -16,7 +16,7 @@ use cw_wormhole::{
 
 use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
 use wormhole_sdk::{
-    ibc_shim::{Action, GovernancePacket},
+    ibc_translator::{Action, GovernancePacket},
     Chain,
 };
 use std::str;
@@ -185,11 +185,11 @@ pub fn parse_bank_token_factory_contract(
 ) -> Result<String, anyhow::Error> {
     // extract the contract address from the denom of the token that was sent to us
     // if the token is not a factory token created by this contract, return error
-    let parsed_denom = coin.denom.split("/").collect::<Vec<_>>();
+    let parsed_denom = coin.denom.split('/').collect::<Vec<_>>();
     ensure!(
         parsed_denom.len() == 3
             && parsed_denom[0] == "factory"
-            && parsed_denom[1] == env.contract.address.to_string(),
+            && parsed_denom[1] == env.contract.address,
         "coin is not from the token factory"
     );
 
@@ -213,12 +213,12 @@ pub fn parse_bank_token_factory_contract(
 pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, anyhow::Error> {
     let decoded_addr = bs58::decode(subdenom)
         .into_vec()
-        .context(format!("failed to decode base58 subdenom {}", subdenom))?;
+        .context(format!("failed to decode base58 subdenom {subdenom}"))?;
     let canonical_addr = Binary::from(decoded_addr);
     deps.api
         .addr_humanize(&canonical_addr.into())
         .map(|a| a.to_string())
-        .context(format!("failed to humanize cosmos address {}", subdenom))
+        .context(format!("failed to humanize cosmos address {subdenom}"))
 }
 
 pub fn submit_update_chain_to_channel_map(
@@ -236,7 +236,7 @@ pub fn submit_update_chain_to_channel_map(
     let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: wormhole_contract,
         msg: to_binary(&WormholeQueryMsg::VerifyVAA {
-            vaa: vaa.clone(),
+            vaa,
             block_time: env.block.time.seconds(),
         })?,
     }))?;
@@ -286,10 +286,10 @@ pub fn submit_update_chain_to_channel_map(
                     &channel_id_trimmed.to_string(),
                 )
                 .context("failed to save channel chain")?;
-            return Ok(Response::new()
+            Ok(Response::new()
                 .add_event(Event::new("UpdateChainToChannelMap")
                     .add_attribute("chain_id", chain_id.to_string())
-                    .add_attribute("channel_id", channel_id_trimmed)));
+                    .add_attribute("channel_id", channel_id_trimmed)))
         }
     }
 }

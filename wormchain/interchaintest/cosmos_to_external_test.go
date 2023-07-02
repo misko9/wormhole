@@ -91,13 +91,20 @@ func TestCosmosToExternal(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Store ibc translator contract
-	ibcTranslatorCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_gateway_old.wasm", guardians)
+	ibcTranslatorCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/ibc_gateway_old.wasm", guardians)
 	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
 
 	// Instantiate ibc translator contract
 	ibcTranslatorInstantiateMsg := helpers.IbcTranslatorContractInstantiateMsg(t, tbContractAddr, coreContractAddr)
 	ibcTranslatorContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", ibcTranslatorCodeId, "ibc_translator", ibcTranslatorInstantiateMsg, guardians)
 	fmt.Println("Ibc translator contract address: ", ibcTranslatorContractAddr)
+
+	// Store ibc translator contract
+	ibcTranslatorCodeId = helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_translator.wasm", guardians)
+	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
+
+	// Migrate from ibc-gateway-old to ibc-translator (moved migrate above submit chain->channel mapping since module name changed for vaa)
+	helpers.MigrateContract(t, ctx, wormchain, "faucet", ibcTranslatorContractAddr, ibcTranslatorCodeId, "{}", guardians)
 
 	// Allowlist worm/osmo chain id / channel
 	wormOsmoAllowlistMsg := helpers.SubmitUpdateChainToChannelMapMsg(t, OsmoChainID, wormToOsmoChannel.ChannelID, guardians)
@@ -106,13 +113,6 @@ func TestCosmosToExternal(t *testing.T) {
 	// Allowlist worm/gaia chain id / channel
 	wormGaiaAllowlistMsg := helpers.SubmitUpdateChainToChannelMapMsg(t, GaiaChainID, wormToGaiaChannel.ChannelID, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, wormGaiaAllowlistMsg)
-
-	// Store ibc translator contract
-	ibcTranslatorCodeId = helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_translator.wasm", guardians)
-	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
-
-	// Migrate from ibc-gateway-old to ibc-translator
-	helpers.MigrateContract(t, ctx, wormchain, "faucet", ibcTranslatorContractAddr, ibcTranslatorCodeId, "{}", guardians)
 
 	// This query was added in a newer version of ibc-translator, so a migration should have taken place for this to succeed
 	var queryChannelRsp helpers.IbcTranslatorQueryRspMsg
@@ -149,10 +149,15 @@ func TestCosmosToExternal(t *testing.T) {
 		Denom: gaiaIbcAsset1Denom,
 		Amount: 10000,
 	}
-	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{})
+	gaiaHeight, err := gaia.Height(ctx)
+	require.NoError(t, err)
+	gaiaIbcTx, err := gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{})
+	require.NoError(t, err)
 	
-	// wait for transfer
-	err = testutil.WaitForBlocks(ctx, 5, wormchain, gaia)
+	// wait for transfer to ack
+	_, err = testutil.PollForAck(ctx, gaia, gaiaHeight, gaiaHeight+30, gaiaIbcTx.Packet)
+	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 1, wormchain, gaia)
 	require.NoError(t, err)
 	
 	// Call SimpleConvertAndTransfer and ContractControlledConvertAndTransfer
@@ -172,9 +177,6 @@ func TestCosmosToExternal(t *testing.T) {
 	expectedSequence++
 	foundEvent = helpers.FindEventAttribute(t, wormchain, ccTxHash, "wasm", "message.sequence", fmt.Sprint(expectedSequence))
 	require.True(t, foundEvent)
-
-	// Check that the wormhole-core event with attributes was emitted (manually)
-	// Programmatically get event? Using getTransaction() and TxHash, what is that output?
 
 	/*var cw20BalanceQueryRsp helpers.Cw20WrappedBalanceQueryRsp
 	cw20BalanceQueryReq := helpers.Cw20WrappedBalanceQueryMsg{Balance: helpers.Cw20BalanceQuery{Address: wormchainFaucetAddr}}

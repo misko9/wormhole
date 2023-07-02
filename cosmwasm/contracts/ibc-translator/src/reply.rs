@@ -170,31 +170,11 @@ pub fn handle_create_denom_reply(
     _env: Env,
     msg: Reply,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-    // we should only be replying on success
+    // we should only be replying on success, if okay, expected token was created.
     ensure!(
         msg.result.is_ok(),
         "msg result is not okay, we should never get here"
     );
-    
-    // extract the contract address from the create denom response
-    // if the token is not a factory token created by this contract, return error
-    // let parsed_denom = new_token_denom.split("/").collect::<Vec<_>>();
-    // ensure!(
-    //    parsed_denom.len() == 3
-    //        && parsed_denom[0] == "factory"
-    //        && parsed_denom[1] == env.contract.address.to_string(),
-    //    "coin is not from the token factory"
-    //);
-
-    // decode subdenom from base64 => encode as cosmos addr to get contract addr
-    //let cw20_contract_addr = contract_addr_from_base58(deps.as_ref(), parsed_denom[2])?;
-
-    // validate that the contract does indeed match the stored denom we have for it
-    //let _stored_denom = CW_DENOMS
-    //    .load(deps.storage, cw20_contract_addr)
-    //    .context(
-    //        "a corresponding denom for the extracted contract addr is not contained in storage",
-    //    )?;
 
     Ok(Response::new())
 }

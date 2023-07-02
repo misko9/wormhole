@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Empty, Env,
     MessageInfo, Reply, Response, StdResult,
 };
+use cw2::set_contract_version;
 
 use crate::{
     bindings::TokenFactoryMsg,
@@ -15,6 +16,10 @@ use crate::{
     execute::{complete_transfer_and_convert, convert_and_transfer, submit_update_chain_to_channel_map, TransferType},
     query::query_ibc_channel,
 };
+
+// version info for migration info
+const CONTRACT_NAME: &str = "ibc-translator";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -31,9 +36,13 @@ pub fn instantiate(
         .save(deps.storage, &msg.wormhole_contract)
         .context("failed to save wormhole contract address to storage")?;
 
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
+        .context("failed to set contract version")?;
+
     Ok(Response::new()
         .add_attribute("action", "instantiate")
-        .add_attribute("owner", info.sender))
+        .add_attribute("owner", info.sender)
+        .add_attribute("version", CONTRACT_VERSION))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

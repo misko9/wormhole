@@ -91,7 +91,7 @@ func TestCosmosToExternal(t *testing.T) {
 	require.NoError(t, err)
 	
 	// Store ibc translator contract
-	ibcTranslatorCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_translator.wasm", guardians)
+	ibcTranslatorCodeId := helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_gateway_old.wasm", guardians)
 	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
 
 	// Instantiate ibc translator contract
@@ -107,6 +107,14 @@ func TestCosmosToExternal(t *testing.T) {
 	wormGaiaAllowlistMsg := helpers.SubmitUpdateChainToChannelMapMsg(t, GaiaChainID, wormToGaiaChannel.ChannelID, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, wormGaiaAllowlistMsg)
 
+	// Store ibc translator contract
+	ibcTranslatorCodeId = helpers.StoreContract(t, ctx, wormchain,"faucet", "./contracts/ibc_translator.wasm", guardians)
+	fmt.Println("ibc_translator code id: ", ibcTranslatorCodeId)
+
+	// Migrate from ibc-gateway-old to ibc-translator
+	helpers.MigrateContract(t, ctx, wormchain, "faucet", ibcTranslatorContractAddr, ibcTranslatorCodeId, "{}", guardians)
+
+	// This query was added in a newer version of ibc-translator, so a migration should have taken place for this to succeed
 	var queryChannelRsp helpers.IbcTranslatorQueryRspMsg
 	queryChannelMsg := helpers.IbcTranslatorQueryMsg{IbcChannel: helpers.QueryIbcChannel{ChainID: OsmoChainID}}
 	wormchain.QueryContract(ctx, ibcTranslatorContractAddr, queryChannelMsg, &queryChannelRsp)

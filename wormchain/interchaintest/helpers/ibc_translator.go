@@ -71,6 +71,27 @@ type CompleteTransferAndConvert struct {
 	Vaa []byte `json:"vaa"`
 }
 
+
+// TODO: replace amount's uint64 with big int or equivalent
+func CreatePayload1(amount uint64, tokenAddr string, tokenChain uint16, recipient []byte, recipientChain uint16, fee uint64) []byte {
+	payload := new(bytes.Buffer)
+	vaa.MustWrite(payload, binary.BigEndian, uint8(1)) // Payload 3: TransferWithPayload
+	payload.Write(make([]byte, 24))
+	vaa.MustWrite(payload, binary.BigEndian, amount)
+
+	tokenAddrPadded := vaa.LeftPadBytes(tokenAddr, 32)
+	payload.Write(tokenAddrPadded.Bytes())
+	vaa.MustWrite(payload, binary.BigEndian, tokenChain)
+	
+	payload.Write(recipient)
+	vaa.MustWrite(payload, binary.BigEndian, recipientChain)
+
+	payload.Write(make([]byte, 24))
+	vaa.MustWrite(payload, binary.BigEndian, fee)
+	
+	return payload.Bytes()
+}
+
 // TODO: replace amount's uint64 with big int or equivalent
 func CreatePayload3(cfg ibc.ChainConfig, amount uint64, tokenAddr string, tokenChain uint16, recipient string, recipientChain uint16, from []byte, contractPayload []byte) []byte {
 	payload := new(bytes.Buffer)

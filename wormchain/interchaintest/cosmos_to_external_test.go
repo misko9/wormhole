@@ -1,6 +1,7 @@
 package ictest
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -178,6 +179,20 @@ func TestCosmosToExternal(t *testing.T) {
 	foundEvent = helpers.FindEventAttribute(t, wormchain, ccTxHash, "wasm", "message.sequence", fmt.Sprint(expectedSequence))
 	require.True(t, foundEvent)
 
+	// Simple payload with a relayer fee
+	relayerFee := uint64(100)
+	amount := int64(500)
+	simpleContractMsg2 := helpers.CreateIbcTranslatorExecuteSimple(t, Asset1ChainID, string(externalSender), relayerFee, 1)
+	simpleTxHash2, err := wormchain.ExecuteContractWithAmount(ctx, "faucet", ibcTranslatorContractAddr, simpleContractMsg2, sdk.NewCoins(sdk.NewCoin(tokenFactoryDenom, sdk.NewInt(amount))))
+	require.NoError(t, err)
+
+	expectedSequence++
+	foundEvent = helpers.FindEventAttribute(t, wormchain, simpleTxHash2, "wasm", "message.sequence", fmt.Sprint(expectedSequence))
+	require.True(t, foundEvent)
+	payload1 := helpers.CreatePayload1(uint64(amount), Asset1ContractAddr, Asset1ChainID, externalSender, Asset1ChainID, relayerFee)
+	payload1Hex := hex.EncodeToString(payload1)
+	foundEvent = helpers.FindEventAttribute(t, wormchain, simpleTxHash2, "wasm", "message.message", payload1Hex)
+	require.True(t, foundEvent)
 	/*var cw20BalanceQueryRsp helpers.Cw20WrappedBalanceQueryRsp
 	cw20BalanceQueryReq := helpers.Cw20WrappedBalanceQueryMsg{Balance: helpers.Cw20BalanceQuery{Address: wormchainFaucetAddr}}
 	wormchain.QueryContract(ctx, cw20Address, cw20BalanceQueryReq, &cw20BalanceQueryRsp)

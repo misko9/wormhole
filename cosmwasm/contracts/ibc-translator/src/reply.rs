@@ -1,7 +1,9 @@
 #[cfg(not(feature = "library"))]
+use anybuf::Anybuf;
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    coin, from_binary, Binary, Deps, DepsMut, Env, IbcTimeout, IbcMsg, Reply, Response, SubMsg,
+    from_binary, Binary, Deps, DepsMut, Env, Reply, Response, SubMsg, 
+    CosmosMsg::Stargate,
 };
 use cw_token_bridge::msg::{
     CompleteTransferResponse,
@@ -130,29 +132,36 @@ pub fn convert_cw20_to_bank_and_send(
         mint_to_address: env.contract.address.to_string(),
     });
 
-    // amount of tokenfactory coins to ibc transfer
-    let amount = coin(amount, tokenfactory_denom);
-
     let channel = CHAIN_TO_CHANNEL_MAP
         .load(deps.storage, chain_id)
         .context("chain id does not have an allowed channel")?;
 
-    let channel_entry = match payload {
-        Some(payload) => {
-            let payload_decoded = String::from_utf8(payload.to_vec()).context(format!(
-                "failed to convert {payload} to utf8 string"))?;
-            channel + "," + &payload_decoded
-        },
-        None => channel
+    let payload_decoded = match payload {
+        Some(payload) => String::from_utf8(payload.to_vec()).context(format!(
+            "failed to convert {payload} to utf8 string"))?,
+        None => "".to_string(),
     };
 
-    response = response.add_message( IbcMsg::Transfer { 
-        channel_id: channel_entry, 
-        to_address: recipient, 
-        amount, 
-        timeout: IbcTimeout::with_timestamp(env.block.time.plus_minutes(2)),
-    });
+    // Create MsgTransfer protobuf message for Stargate
+    let ibc_msg_transfer = Anybuf::new()
+        .append_string(1, &"transfer".to_string()) // source port
+        .append_string(2, &channel) // source channel
+        .append_message(3, 
+            &Anybuf::new()
+                    .append_string(1, &tokenfactory_denom)
+                    .append_string(2, &amount.to_string())) // Token
+        .append_string(4, &env.contract.address) // sender
+        .append_string(5, &recipient) // receiver
+        .append_message(6, 
+            &Anybuf::new()
+                    .append_uint64(1, 0)
+                    .append_uint64(2, 0)) // TimeoutHeight
+        .append_uint64(7, env.block.time.plus_days(365).nanos()) // TimeoutTimestamp
+        .append_string(8, &payload_decoded); // Memo
 
+    response = response.add_message(Stargate { 
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(), 
+        value: ibc_msg_transfer.into_vec().into() });
     Ok(response)
 }
 

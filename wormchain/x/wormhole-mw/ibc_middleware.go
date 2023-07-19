@@ -2,7 +2,6 @@ package wormhole_mw
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
@@ -24,21 +23,21 @@ var _ porttypes.Middleware = &IBCMiddleware{}
 // forward keeper and the underlying application.
 type IBCMiddleware struct {
 	app    porttypes.IBCModule
-	wasmKeeper *wasmkeeper.PermissionedKeeper
+	wasmKeeper *wasmkeeper.Keeper
 
 	retriesOnTimeout uint8
 	forwardTimeout   time.Duration
 	refundTimeout    time.Duration
 }
 
-func (im *IBCMiddleware) SetWasmKeeper(keeper *wasmkeeper.PermissionedKeeper) {
+func (im *IBCMiddleware) SetWasmKeeper(keeper *wasmkeeper.Keeper) {
 	im.wasmKeeper = keeper
 }
 
 // NewIBCMiddleware creates a new IBCMiddleware given the keeper and underlying application.
 func NewIBCMiddleware(
 	app porttypes.IBCModule,
-	k *wasmkeeper.PermissionedKeeper,
+	k *wasmkeeper.Keeper,
 	retriesOnTimeout uint8,
 	forwardTimeout time.Duration,
 	refundTimeout time.Duration,
@@ -111,31 +110,68 @@ func (im IBCMiddleware) OnRecvPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
+	// If wasm keeper is not set, bypass this middleware
+	if im.wasmKeeper == nil {
+		return im.app.OnRecvPacket(ctx, packet, relayer)
+	}
+
 	var data transfertypes.FungibleTokenPacketData
 	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
 
-	d := make(map[string]interface{})
-	err := json.Unmarshal([]byte(data.Memo), &d)
-	if err != nil || d["gateway_ibc_token_bridge_payload"] == nil {
-		// not a packet that should be forwarded
+	memo := make(map[string]interface{})
+	err := json.Unmarshal([]byte(data.Memo), &memo)
+	if err != nil || memo["gateway_ibc_token_bridge_payload"] == nil {
+		// not a packet that should be parsed
 		return im.app.OnRecvPacket(ctx, packet, relayer)
 	}
-	m := &types.GatewayIbcTokenBridgePayload{}
-	err = json.Unmarshal([]byte(data.Memo), m)
+
+	parsedPayload, err := types.VerifyAndParseGatewayPayload(data.Memo)
 	if err != nil {
-		return channeltypes.NewErrorAcknowledgement(fmt.Errorf("wormhole-mw: error parsing gateway ibc token bridge payload, %s", err))
+		return channeltypes.NewErrorAcknowledgement(err)
 	}
 
 	// Look up chain id's channel
-	// If doesn't exist, create ibc-hooks memo
-	// If exists, create PFM memo
-	// Check the payload type
-	// If simple
-	// If CC
+	req := types.IbcTranslatorQueryMsg{
+		IbcChannel: types.QueryIbcChannel{
+			ChainID: parsedPayload.ChainId,
+		},
+	}
+	reqBz, err := json.Marshal(req)
+	if err != nil {
+		return channeltypes.NewErrorAcknowledgement(err)
+	}
+	ibcTranslatorAddr, err := sdk.AccAddressFromBech32("wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h")
+	if err != nil {
+		return channeltypes.NewErrorAcknowledgement(err)
+	}
+	resp, err := im.wasmKeeper.QuerySmart(ctx, ibcTranslatorAddr, reqBz)
+	
+	var newMemo string
+	if err == nil {
+		// If response exists, create PFM memo
+		newMemo, err = types.FormatPfmMemo(parsedPayload, resp)
+		if err != nil {
+			return channeltypes.NewErrorAcknowledgement(err)
+		}
+	} else {
+		// If response doesn't exist, create ibc-hooks memo
+		newMemo, err = types.FormatIbcHooksMemo(parsedPayload)
+		if err != nil {
+			return channeltypes.NewErrorAcknowledgement(err)
+		}
+	}
 
-	return nil
+	data.Memo = newMemo
+	newData, err := transfertypes.ModuleCdc.MarshalJSON(&data)
+	if err != nil {
+		return channeltypes.NewErrorAcknowledgement(err)
+	}
+
+	packet.Data = newData
+
+	return im.app.OnRecvPacket(ctx, packet, relayer)
 }
 
 // OnAcknowledgementPacket implements the IBCModule interface.

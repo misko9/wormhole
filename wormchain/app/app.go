@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -98,12 +99,13 @@ import (
 	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
+
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
-	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	tokenfactorykeeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
+	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
 	ibchooks "github.com/wormhole-foundation/wormchain/x/ibc-hooks"
 	ibchookskeeper "github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
@@ -112,6 +114,9 @@ import (
 	packetforward "github.com/strangelove-ventures/packet-forward-middleware/v4/router"
 	packetforwardkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
 	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
+
+	wormholemw "github.com/wormhole-foundation/wormchain/x/wormhole-mw"
+	wormholemwtypes "github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
 )
 
 const (
@@ -190,6 +195,7 @@ var (
 		tokenfactory.AppModuleBasic{},
 		ibchooks.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
+		wormholemw.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -268,7 +274,7 @@ type App struct {
 	// IBC modules
 	RawIcs20TransferAppModule transfer.AppModule
 	IBCHooksKeeper *ibchookskeeper.Keeper
-	TransferStack *ibchooks.IBCMiddleware
+	TransferStack *wormholemw.IBCMiddleware
 	Ics20WasmHooks *ibchooks.WasmHooks
 	HooksICS4Wrapper ibchooks.ICS4Middleware
 	PacketForwardKeeper       *packetforwardkeeper.Keeper
@@ -461,6 +467,7 @@ func New(
 
 	app.ContractKeeper = wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.Ics20WasmHooks.ContractKeeper = app.ContractKeeper
+	app.TransferStack.SetWasmKeeper(&app.wasmKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -505,6 +512,7 @@ func New(
 		tokenfactory.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		ibchooks.NewAppModule(app.AccountKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper),
+		wormholemw.NewAppModule(),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -535,6 +543,7 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		wormholemwtypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -561,6 +570,7 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		wormholemwtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -595,6 +605,7 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		wormholemwtypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -880,5 +891,8 @@ func (app *App) WireICS20PreWasmKeeper() {
 
 	// Hooks Middleware
 	hooksTransferModule := ibchooks.NewIBCMiddleware(packetForwardMiddleware, &app.HooksICS4Wrapper)
-	app.TransferStack = &hooksTransferModule
+
+	// Wormhole Middleware
+	wormholeMiddleware := wormholemw.NewIBCMiddleware(&hooksTransferModule, nil, 0, time.Hour, time.Hour)
+	app.TransferStack = &wormholeMiddleware
 }

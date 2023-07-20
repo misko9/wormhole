@@ -51,11 +51,13 @@ var (
 	ActionCoreTransferFees   GovernanceAction = 4
 	ActionCoreRecoverChainId GovernanceAction = 5
 
-	// Wormchain cosmwasm governance actions
-	ActionStoreCode                    GovernanceAction = 1
-	ActionInstantiateContract          GovernanceAction = 2
-	ActionMigrateContract              GovernanceAction = 3
-	ActionAllowlistInstantiateContract GovernanceAction = 4
+	// Wormchain cosmwasm/middlware governance actions
+	ActionStoreCode                      GovernanceAction = 1
+	ActionInstantiateContract            GovernanceAction = 2
+	ActionMigrateContract                GovernanceAction = 3
+	ActionAddWasmInstantiateAllowlist    GovernanceAction = 4
+	ActionDeleteWasmInstantiateAllowlist GovernanceAction = 5
+	ActionSetWormholeMiddlewareContract  GovernanceAction = 6
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -133,9 +135,14 @@ type (
 	}
 
 	// BodyWormchainAllowlistInstantiateContract is a governance message to allowlist a specific contract address to instantiate a specific wasm code id.
-	BodyWormchainAllowlistInstantiateContract struct {
+	BodyWormchainWasmAllowlistInstantiate struct {
 		ContractAddr [32]byte
 		CodeId       uint64
+	}
+
+	// BodyWormchainMiddlewareContract is a governance message to set a specific contract (i.e. IBC Translator) for the middleware to use
+	BodyWormchainMiddlewareContract struct {
+		ContractAddr [32]byte
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -257,14 +264,14 @@ func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
 
-func (r BodyWormchainAllowlistInstantiateContract) Serialize() []byte {
+func (r BodyWormchainWasmAllowlistInstantiate) Serialize(action GovernanceAction) []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ContractAddr[:])
 	MustWrite(payload, binary.BigEndian, r.CodeId)
-	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionAllowlistInstantiateContract, ChainIDWormchain, payload.Bytes())
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, action, ChainIDWormchain, payload.Bytes())
 }
 
-func (r *BodyWormchainAllowlistInstantiateContract) Deserialize(bz []byte) {
+func (r *BodyWormchainWasmAllowlistInstantiate) Deserialize(bz []byte) {
 	if len(bz) != 40 {
 		panic("incorrect payload length")
 	}
@@ -276,6 +283,23 @@ func (r *BodyWormchainAllowlistInstantiateContract) Deserialize(bz []byte) {
 
 	r.ContractAddr = contractAddr
 	r.CodeId = codeId
+}
+
+func (r BodyWormchainMiddlewareContract) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.ContractAddr[:])
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionSetWormholeMiddlewareContract, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyWormchainMiddlewareContract) Deserialize(bz []byte) {
+	if len(bz) != 32 {
+		panic("incorrect payload length")
+	}
+
+	var contractAddr [32]byte
+	copy(contractAddr[:], bz[0:32])
+
+	r.ContractAddr = contractAddr
 }
 
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {

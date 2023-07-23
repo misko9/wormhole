@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 type IbcTranslatorIbcHooksSimple struct {
@@ -49,7 +48,6 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload, middlewareContract string) 
 	// If exists, create PFM memo
 	var ibcHooksMemo string
 	if parsedPayload.IsSimple {
-		fmt.Println("Simple payload")
 		simple := IbcTranslatorIbcHooksSimple{
 			Payload: IbcTranslatorIbcHooksPayloadSimple{
 				Contract: middlewareContract,
@@ -69,7 +67,6 @@ func FormatIbcHooksMemo(parsedPayload ParsedPayload, middlewareContract string) 
 		}
 		ibcHooksMemo = string(simpleBz)
 	} else {
-		fmt.Println("Contract controlled payload")
 		cc := IbcTranslatorIbcHooksContractControlled{
 			Payload: IbcTranslatorIbcHooksPayloadContractControlled{
 				Contract: middlewareContract,

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand"
 
+	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
 
 	"github.com/gorilla/mux"
@@ -72,11 +73,12 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 // AppModule represents the AppModule for this module
 type AppModule struct {
 	AppModuleBasic
+	keeper *keeper.Keeper
 }
 
 // NewAppModule creates a new router module
-func NewAppModule() AppModule {
-	return AppModule{}
+func NewAppModule(keeper *keeper.Keeper) AppModule {
+	return AppModule{keeper: keeper}
 }
 
 // RegisterInvariants implements the AppModule interface
@@ -103,13 +105,17 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {}
 // InitGenesis performs genesis initialization for the module. It returns
 // no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) []abci.ValidatorUpdate {
+	var genesisState types.GenesisState
+	cdc.MustUnmarshalJSON(data, &genesisState)
+	am.keeper.InitGenesis(ctx, genesisState)
 	return []abci.ValidatorUpdate{}
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the ibc-router
 // module.
 func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
-	return json.RawMessage([]byte("{}"))
+	gs := am.keeper.ExportGenesis(ctx)
+	return cdc.MustMarshalJSON(gs)
 }
 
 // ConsensusVersion implements AppModule/ConsensusVersion.

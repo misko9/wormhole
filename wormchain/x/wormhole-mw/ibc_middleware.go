@@ -1,21 +1,14 @@
 package wormhole_mw
 
 import (
-	"encoding/json"
-	"time"
-
-	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole-mw/keeper"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
-	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v4/modules/core/05-port/types"
 	ibcexported "github.com/cosmos/ibc-go/v4/modules/core/exported"
-
-	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
-	wormholekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 )
 
 var _ porttypes.Middleware = &IBCMiddleware{}
@@ -23,35 +16,21 @@ var _ porttypes.Middleware = &IBCMiddleware{}
 // IBCMiddleware implements the ICS26 callbacks for the wormhole middleware given the
 // forward keeper and the underlying application.
 type IBCMiddleware struct {
-	app            porttypes.IBCModule
-	wasmKeeper     *wasmkeeper.Keeper
-	wormholeKeeper *wormholekeeper.Keeper
-
-	retriesOnTimeout uint8
-	forwardTimeout   time.Duration
-	refundTimeout    time.Duration
-}
-
-func (im *IBCMiddleware) SetWasmKeeper(keeper *wasmkeeper.Keeper) {
-	im.wasmKeeper = keeper
+	app  porttypes.IBCModule
+	ics4 *ICS4Middleware
+	keeper *keeper.Keeper
 }
 
 // NewIBCMiddleware creates a new IBCMiddleware given the keeper and underlying application.
 func NewIBCMiddleware(
-	app porttypes.IBCModule,
-	k *wasmkeeper.Keeper,
-	wk *wormholekeeper.Keeper,
-	retriesOnTimeout uint8,
-	forwardTimeout time.Duration,
-	refundTimeout time.Duration,
+	app              porttypes.IBCModule,
+	ics4             *ICS4Middleware,
+	keeper *keeper.Keeper,
 ) IBCMiddleware {
 	return IBCMiddleware{
-		app:              app,
-		wasmKeeper:       k,
-		wormholeKeeper:   wk,
-		retriesOnTimeout: retriesOnTimeout,
-		forwardTimeout:   forwardTimeout,
-		refundTimeout:    refundTimeout,
+		app:  app,
+		ics4: ics4,
+		keeper: keeper,
 	}
 }
 
@@ -114,69 +93,10 @@ func (im IBCMiddleware) OnRecvPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
-	// If wasm keeper is not set, bypass this middleware
-	if im.wasmKeeper == nil {
-		return im.app.OnRecvPacket(ctx, packet, relayer)
+	packet, ackErr := im.keeper.OnRecvPacket(ctx, packet)
+	if ackErr != nil {
+		return ackErr
 	}
-
-	var data transfertypes.FungibleTokenPacketData
-	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
-		return channeltypes.NewErrorAcknowledgement(err)
-	}
-
-	memo := make(map[string]interface{})
-	err := json.Unmarshal([]byte(data.Memo), &memo)
-	if err != nil || memo["gateway_ibc_token_bridge_payload"] == nil {
-		// not a packet that should be parsed
-		return im.app.OnRecvPacket(ctx, packet, relayer)
-	}
-
-	parsedPayload, err := types.VerifyAndParseGatewayPayload(data.Memo)
-	if err != nil {
-		return channeltypes.NewErrorAcknowledgement(err)
-	}
-
-	// Get ibc translator contract address
-	wormholeMiddlewareContract := im.wormholeKeeper.GetMiddlewareContract(ctx)
-
-	// Look up chain id's channel
-	req := types.IbcTranslatorQueryMsg{
-		IbcChannel: types.QueryIbcChannel{
-			ChainID: parsedPayload.ChainId,
-		},
-	}
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return channeltypes.NewErrorAcknowledgement(err)
-	}
-	ibcTranslatorAddr, err := sdk.AccAddressFromBech32(wormholeMiddlewareContract.ContractAddress)
-	if err != nil {
-		return channeltypes.NewErrorAcknowledgement(err)
-	}
-	resp, err := im.wasmKeeper.QuerySmart(ctx, ibcTranslatorAddr, reqBz)
-
-	var newMemo string
-	if err == nil {
-		// If response exists, create PFM memo
-		newMemo, err = types.FormatPfmMemo(parsedPayload, resp)
-		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(err)
-		}
-	} else {
-		// If response doesn't exist, create ibc-hooks memo
-		newMemo, err = types.FormatIbcHooksMemo(parsedPayload, wormholeMiddlewareContract.ContractAddress)
-		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(err)
-		}
-	}
-
-	data.Memo = newMemo
-	newData, err := transfertypes.ModuleCdc.MarshalJSON(&data)
-	if err != nil {
-		return channeltypes.NewErrorAcknowledgement(err)
-	}
-
-	packet.Data = newData
 
 	return im.app.OnRecvPacket(ctx, packet, relayer)
 }
@@ -202,7 +122,7 @@ func (im IBCMiddleware) SendPacket(
 	chanCap *capabilitytypes.Capability,
 	packet ibcexported.PacketI,
 ) error {
-	panic("Wormhole-mw should not be wired for SendPacket")
+	return im.ics4.SendPacket(ctx, chanCap, packet)
 }
 
 // WriteAcknowledgement implements the ICS4 Wrapper interface.
@@ -212,9 +132,9 @@ func (im IBCMiddleware) WriteAcknowledgement(
 	packet ibcexported.PacketI,
 	ack ibcexported.Acknowledgement,
 ) error {
-	panic("Wormhole-mw should not be wired for WriteAcknowledgement")
+	return im.ics4.WriteAcknowledgement(ctx, chanCap, packet, ack)
 }
 
 func (im IBCMiddleware) GetAppVersion(ctx sdk.Context, portID string, channelID string) (string, bool) {
-	panic("Wormhole-mw should not be wired for ICS4")
+	return im.ics4.GetAppVersion(ctx, portID, channelID)
 }

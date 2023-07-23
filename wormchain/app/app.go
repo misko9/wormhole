@@ -116,6 +116,8 @@ import (
 	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
 
 	wormholemw "github.com/wormhole-foundation/wormchain/x/wormhole-mw"
+	wormholemwkeeper "github.com/wormhole-foundation/wormchain/x/wormhole-mw/keeper"
+	wormholemwtypes "github.com/wormhole-foundation/wormchain/x/wormhole-mw/types"
 )
 
 const (
@@ -194,6 +196,7 @@ var (
 		tokenfactory.AppModuleBasic{},
 		ibchooks.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
+		wormholemw.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -276,6 +279,7 @@ type App struct {
 	Ics20WasmHooks            *ibchooks.WasmHooks
 	HooksICS4Wrapper          ibchooks.ICS4Middleware
 	PacketForwardKeeper       *packetforwardkeeper.Keeper
+	WormholeMwKeeper          *wormholemwkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 	wasmKeeper       wasm.Keeper
@@ -313,7 +317,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
-		wormholemoduletypes.StoreKey,
+		wormholemoduletypes.StoreKey, wormholemwtypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		wasm.StoreKey, tokenfactorytypes.StoreKey, ibchookstypes.StoreKey, packetforwardtypes.StoreKey,
 	)
@@ -466,7 +470,7 @@ func New(
 
 	app.ContractKeeper = wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.Ics20WasmHooks.ContractKeeper = app.ContractKeeper
-	app.TransferStack.SetWasmKeeper(&app.wasmKeeper)
+	app.WormholeMwKeeper.SetWasmKeeper(&app.wasmKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -511,6 +515,7 @@ func New(
 		tokenfactory.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		ibchooks.NewAppModule(app.AccountKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper),
+		wormholemw.NewAppModule(app.WormholeMwKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -541,6 +546,7 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		wormholemwtypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -567,6 +573,7 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		wormholemwtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -601,6 +608,7 @@ func New(
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		wormholemwtypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -829,6 +837,23 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 //
 // After this, the wasm keeper is required to be set on app.Ics20WasmHooks
 func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
+	// Configure the wormhole mw keeper
+	wormholeMwKeeper := wormholemwkeeper.NewKeeper(
+		app.appCodec, 
+		app.keys[wormholemwtypes.StoreKey],
+		nil, // Wasm keeper is set later
+		wk,
+		0,
+		time.Minute,
+		time.Minute,
+	)
+	app.WormholeMwKeeper = wormholeMwKeeper
+
+	wormholeMwICS4Wrapper := wormholemw.NewICS4Middleware(
+		app.IBCKeeper.ChannelKeeper,
+		wormholeMwKeeper,
+	)
+
 	// Configure the hooks keeper
 	ibcHooksKeeper := ibchookskeeper.NewKeeper(
 		app.keys[ibchookstypes.StoreKey],
@@ -840,7 +865,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, nil, wormPrefix) // The contract keeper needs to be set later
 	app.Ics20WasmHooks = &wasmHooks
 	app.HooksICS4Wrapper = ibchooks.NewICS4Middleware(
-		app.IBCKeeper.ChannelKeeper,
+		wormholeMwICS4Wrapper,
 		app.Ics20WasmHooks,
 	)
 
@@ -888,6 +913,6 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	hooksTransferModule := ibchooks.NewIBCMiddleware(packetForwardMiddleware, &app.HooksICS4Wrapper)
 
 	// Wormhole Middleware
-	wormholeMiddleware := wormholemw.NewIBCMiddleware(&hooksTransferModule, nil, wk, 0, time.Hour, time.Hour)
+	wormholeMiddleware := wormholemw.NewIBCMiddleware(&hooksTransferModule, &wormholeMwICS4Wrapper, wormholeMwKeeper)
 	app.TransferStack = &wormholeMiddleware
 }

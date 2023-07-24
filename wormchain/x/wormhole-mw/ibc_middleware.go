@@ -16,20 +16,20 @@ var _ porttypes.Middleware = &IBCMiddleware{}
 // IBCMiddleware implements the ICS26 callbacks for the wormhole middleware given the
 // forward keeper and the underlying application.
 type IBCMiddleware struct {
-	app  porttypes.IBCModule
-	ics4 *ICS4Middleware
+	app    porttypes.IBCModule
+	ics4   *ICS4Middleware
 	keeper *keeper.Keeper
 }
 
 // NewIBCMiddleware creates a new IBCMiddleware given the keeper and underlying application.
 func NewIBCMiddleware(
-	app              porttypes.IBCModule,
-	ics4             *ICS4Middleware,
+	app porttypes.IBCModule,
+	ics4 *ICS4Middleware,
 	keeper *keeper.Keeper,
 ) IBCMiddleware {
 	return IBCMiddleware{
-		app:  app,
-		ics4: ics4,
+		app:    app,
+		ics4:   ics4,
 		keeper: keeper,
 	}
 }

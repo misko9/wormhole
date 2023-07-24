@@ -839,7 +839,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	// Configure the wormhole mw keeper
 	wormholeMwKeeper := wormholemwkeeper.NewKeeper(
-		app.appCodec, 
+		app.appCodec,
 		app.keys[wormholemwtypes.StoreKey],
 		nil, // Wasm keeper is set later
 		wk,

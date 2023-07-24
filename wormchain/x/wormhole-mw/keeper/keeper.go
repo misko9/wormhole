@@ -19,33 +19,33 @@ import (
 )
 
 type Keeper struct {
-	cdc        codec.BinaryCodec
-	storeKey   storetypes.StoreKey
+	cdc            codec.BinaryCodec
+	storeKey       storetypes.StoreKey
 	wasmKeeper     *wasmkeeper.Keeper
 	wormholeKeeper *wormholekeeper.Keeper
-	
+
 	retriesOnTimeout uint8
 	forwardTimeout   time.Duration
 	refundTimeout    time.Duration
 }
 
 func NewKeeper(
-	cdc        codec.BinaryCodec,
-	storeKey   storetypes.StoreKey,
-	wasmKeeper     *wasmkeeper.Keeper,
+	cdc codec.BinaryCodec,
+	storeKey storetypes.StoreKey,
+	wasmKeeper *wasmkeeper.Keeper,
 	wormholeKeeper *wormholekeeper.Keeper,
 	retriesOnTimeout uint8,
-	forwardTimeout   time.Duration,
-	refundTimeout    time.Duration,
+	forwardTimeout time.Duration,
+	refundTimeout time.Duration,
 ) *Keeper {
 	return &Keeper{
-		cdc: cdc,
-		storeKey: storeKey,
-		wasmKeeper: wasmKeeper,
-		wormholeKeeper: wormholeKeeper,
+		cdc:              cdc,
+		storeKey:         storeKey,
+		wasmKeeper:       wasmKeeper,
+		wormholeKeeper:   wormholeKeeper,
 		retriesOnTimeout: retriesOnTimeout,
-		forwardTimeout: forwardTimeout,
-		refundTimeout: refundTimeout,
+		forwardTimeout:   forwardTimeout,
+		refundTimeout:    refundTimeout,
 	}
 }
 
@@ -129,7 +129,7 @@ func (k Keeper) OnRecvPacket(
 		store := ctx.KVStore(k.storeKey)
 		store.Set(key, packet.GetData())
 	}
-	
+
 	packet.Data = newData
 
 	return packet, nil

@@ -23,7 +23,7 @@ func GetMiddlewareContract(
 	chain *cosmos.CosmosChain,
 ) string {
 	node := chain.GetFullNode()
-	stdout, _, err := node.ExecQuery(ctx, "wormhole", "show-middleware-contract")
+	stdout, _, err := node.ExecQuery(ctx, "wormhole", "show-ibc-composability-mw-contract")
 	require.NoError(t, err)
 	return string(stdout)
 }
@@ -41,7 +41,7 @@ func SetMiddlewareContract(
 
 	contractAddr := [32]byte{}
 	copy(contractAddr[:], MustAccAddressFromBech32(contractBech32Addr, cfg.Bech32Prefix).Bytes())
-	payload := vaa.BodyWormchainMiddlewareContract{
+	payload := vaa.BodyWormchainIbcComposabilityMwContract{
 		ContractAddr: contractAddr,
 	}
 	payloadBz := payload.Serialize()
@@ -50,7 +50,7 @@ func SetMiddlewareContract(
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
 
-	_, err = node.ExecTx(ctx, keyName, "wormhole", "set-middleware-contract", contractBech32Addr, vHex, "--gas", "auto")
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "set-ibc-composability-mw-contract", contractBech32Addr, vHex, "--gas", "auto")
 	require.NoError(t, err)
 }
 

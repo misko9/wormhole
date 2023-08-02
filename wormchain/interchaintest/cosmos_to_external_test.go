@@ -122,7 +122,7 @@ func TestCosmosToExternal(t *testing.T) {
 
 	// Create and process a simple ibc payload3: Transfers 1.231245 of asset1 from external chain through wormchain to gaia user
 	// Add relayer fee
-	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
+	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
 	payload3 := helpers.CreatePayload3(wormchain.Config(), 30000, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -147,7 +147,7 @@ func TestCosmosToExternal(t *testing.T) {
 	// ************* Ibc hooks + Simple payload ****************
 	// Call SimpleConvertAndTransfer and ContractControlledConvertAndTransfer
 	// Using "externalSender" as recipient because it is 32 bytes
-	simpleMemo := helpers.CreateWormholeMwSimpleMemo(t, Asset1ChainID, externalSender, 0, 1)
+	simpleMemo := helpers.CreateIbcComposabilityMwMemoGatewayTransfer(t, Asset1ChainID, externalSender, 0, 1)
 	transfer := ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
@@ -165,7 +165,7 @@ func TestCosmosToExternal(t *testing.T) {
 	require.NoError(t, err)
 
 	// ********* Ibc hooks + Contract controlled payload **********
-	ccIbcHooksMsg := helpers.CreateWormholeMwContractControlledMemo(t, Asset1ChainID, externalSender, []byte("ExternalContractPayload"), 1)
+	ccIbcHooksMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t, Asset1ChainID, externalSender, []byte("ExternalContractPayload"), 1)
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,

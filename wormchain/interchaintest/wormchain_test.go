@@ -161,14 +161,14 @@ func TestWormchain(t *testing.T) {
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, wormGaiaAllowlistMsg)
 
 	// Create and process a simple ibc payload3: Transfers 10.000_018 of asset1 from external chain through wormchain to gaia user
-	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
+	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
 	payload3 := helpers.CreatePayload3(wormchain.Config(), uint64(AmountExternalToGaiaUser1), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 
 	// Create and process a simple ibc payload3: Transfers 1.000_001 of asset1 from external chain through wormchain to osmo user1
-	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, OsmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
+	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), uint64(AmountExternalToOsmoUser1), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -177,7 +177,7 @@ func TestWormchain(t *testing.T) {
 	// Transfers 1.000_002 of asset1 from external chain through wormchain to ibc hooks contract addr
 	// IBC hooks is used to route the contract controlled payload to a test contract which forwards tokens to osmo user2
 	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
+	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), uint64(AmountExternalToOsmoUser2), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -204,9 +204,23 @@ func TestWormchain(t *testing.T) {
 	osmoAsset1Denom := transfertypes.GetPrefixedDenom("transfer", osmoToWormChannel.ChannelID, tokenFactoryDenom)
 	osmoIbcAsset1Denom := transfertypes.ParseDenomTrace(osmoAsset1Denom).IBCDenom()
 
+	// Verify Gaia user 1 has expected asset 1 balance
+	gaiaUser1Asset1BalanceTemp, err := gaia.GetBalance(ctx, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), gaiaIbcAsset1Denom)
+	require.NoError(t, err)
+	fmt.Println("Gaia user asset1 coins: ", gaiaUser1Asset1BalanceTemp)
+
+	// wait for transfer to ack
+	err = testutil.WaitForBlocks(ctx, 2, wormchain, gaia)
+	require.NoError(t, err)
+
+	// Verify Gaia user 1 has expected asset 1 balance
+	gaiaUser1Asset1BalanceTemp, err = gaia.GetBalance(ctx, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), gaiaIbcAsset1Denom)
+	require.NoError(t, err)
+	fmt.Println("Gaia user asset1 coins: ", gaiaUser1Asset1BalanceTemp)
+
 	// *************  Cosmos->External: Simple payload (wormhole-mw + ibc-hooks)  ****************
 	// Send 1.000_003 asset 1 from gaia user 1 to external
-	simpleMemo := helpers.CreateWormholeMwSimpleMemo(t, Asset1ChainID, externalSender, 0, 1)
+	simpleMemo := helpers.CreateIbcComposabilityMwMemoGatewayTransfer(t, Asset1ChainID, externalSender, 0, 1)
 	transfer := ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
@@ -221,7 +235,7 @@ func TestWormchain(t *testing.T) {
 
 	// *************  Cosmos->External: Contract controlled payload (wormhole-mw + ibc-hooks)  ****************
 	// Send 1.000_004 asset 1 from gaia user 1 to external
-	ccIbcHooksMsg := helpers.CreateWormholeMwContractControlledMemo(t, Asset1ChainID, externalSender, []byte("ExternalContractPayload"), 1)
+	ccIbcHooksMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t, Asset1ChainID, externalSender, []byte("ExternalContractPayload"), 1)
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
@@ -236,7 +250,7 @@ func TestWormchain(t *testing.T) {
 
 	// **************  Cosmos->Cosmos: Simple payload (wormhole-mw + PFM)  ****************
 	// Send 1.000_005 asset 1 from gaia user 1 to osmo user 1
-	simplePfmMsg := helpers.CreateWormholeMwSimpleMemo(t, OsmoChainID, []byte(osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix)), 0, 1)
+	simplePfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransfer(t, OsmoChainID, []byte(osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix)), 0, 1)
 	transfer = ibc.WalletAmount{
 		Address: wormchainFaucetAddr,
 		Denom:   gaiaIbcAsset1Denom,
@@ -257,7 +271,7 @@ func TestWormchain(t *testing.T) {
 	// **************  Cosmos->Cosmos: Contract controlled payload (wormhole-mw + PFM)  ****************
 	// Send 1.000_006 asset 1 from gaia user 1 to osmo user 2
 	ccPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	ccPfmMsg := helpers.CreateWormholeMwContractControlledMemo(t, OsmoChainID, []byte(ibcHooksContractAddr), ccPayload, 1)
+	ccPfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t, OsmoChainID, []byte(ibcHooksContractAddr), ccPayload, 1)
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
@@ -303,6 +317,9 @@ func TestWormchain(t *testing.T) {
 	require.NoError(t, err)
 	expectedTotalSupply := AmountExternalToGaiaUser1 + AmountExternalToOsmoUser1 + AmountExternalToOsmoUser2 - AmountGaiaUser1ToExternalSimple - AmountGaiaUser1ToExternalCC
 	require.Equal(t, uint64(expectedTotalSupply), totalSupply)
+
+	denomsMetadata := helpers.GetDenomsMetadata(t, ctx, wormchain)
+	fmt.Println("Denoms metadata: ", denomsMetadata)
 }
 
 type QueryMsg struct {

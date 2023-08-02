@@ -126,7 +126,7 @@ func TestMalformedPayload(t *testing.T) {
 	// ---------------------------------------------------------------------------------------------------------------------------
 
 	// Test 1 (Simple payload has 100 added to osmo chain id)
-	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, OsmoChainID+100, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
+	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID+100, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
 	payload3 := helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -144,7 +144,7 @@ func TestMalformedPayload(t *testing.T) {
 	fmt.Println("Ibc hooks contract coins: ", coins)
 
 	// Test 2 (Simple payload has a cosmos/gaia prefix for recipient address)
-	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, OsmoChainID, osmoUser1.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
+	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -162,7 +162,7 @@ func TestMalformedPayload(t *testing.T) {
 
 	// Test 3 (CC payload has osmo user1 as recipient and not a contract)
 	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), ibcHooksPayload, 1)
+	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -180,7 +180,7 @@ func TestMalformedPayload(t *testing.T) {
 
 	// Test 4 (change wasm)
 	ibcHooksPayload = CreateInvalidIbcHooksMsgWasm(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
+	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -199,7 +199,7 @@ func TestMalformedPayload(t *testing.T) {
 	// Test 5 (CC payload's ibc hook payload has osmo user1 as recipient and not a contract)
 	cosmosIbcHooksContractAddr := swapBech32Prefix(ibcHooksContractAddr, osmosis.Config().Bech32Prefix, gaia.Config().Bech32Prefix)
 	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, cosmosIbcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
+	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -217,7 +217,7 @@ func TestMalformedPayload(t *testing.T) {
 
 	// Test 6 (CC payload's ibc hook payload has osmo user1 as recipient and not a contract)
 	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
+	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -235,7 +235,7 @@ func TestMalformedPayload(t *testing.T) {
 
 	// Test 7
 	ibcHooksPayload = CreateInvalidIbcHooksMsgExecute(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
+	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -253,7 +253,7 @@ func TestMalformedPayload(t *testing.T) {
 
 	// Test 8 (CC payload's ibc hook payload has recipient with cosmos/gaia bech32 prefix)
 	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(gaia.Config().Bech32Prefix))
-	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadContract(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
+	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)

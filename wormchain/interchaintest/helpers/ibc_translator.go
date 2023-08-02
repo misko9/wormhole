@@ -206,20 +206,20 @@ func IbcTranslatorCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uin
 	return string(msgBz)
 }
 
-type GatewayIbcTokenBridgePayloadSimple struct {
-	Simple Simple `json:"simple"`
+type GatewayIbcTokenBridgePayloadTransfer struct {
+	GatewayTransfer GatewayTransfer `json:"gateway_transfer"`
 }
 
-type Simple struct {
+type GatewayTransfer struct {
 	Chain     uint16 `json:"chain"`
 	Recipient []byte `json:"recipient"`
 	Fee       string `json:"fee"`
 	Nonce     uint32 `json:"nonce"`
 }
 
-func CreateGatewayIbcTokenBridgePayloadSimple(t *testing.T, chainID uint16, recipient string, fee uint64, nonce uint32) []byte {
-	msg := GatewayIbcTokenBridgePayloadSimple{
-		Simple: Simple{
+func CreateGatewayIbcTokenBridgePayloadTransfer(t *testing.T, chainID uint16, recipient string, fee uint64, nonce uint32) []byte {
+	msg := GatewayIbcTokenBridgePayloadTransfer{
+		GatewayTransfer: GatewayTransfer{
 			Chain:     chainID,
 			Recipient: []byte(recipient),
 			Fee:       fmt.Sprint(fee),
@@ -232,20 +232,20 @@ func CreateGatewayIbcTokenBridgePayloadSimple(t *testing.T, chainID uint16, reci
 	return msgBz
 }
 
-type GatewayIbcTokenBridgePayloadContractControlled struct {
-	ContractControlled ContractControlled `json:"contract_controlled"`
+type GatewayIbcTokenBridgePayloadTransferWithPayload struct {
+	GatewayTransferWithPayload GatewayTransferWithPayload `json:"gateway_transfer_with_payload"`
 }
 
-type ContractControlled struct {
+type GatewayTransferWithPayload struct {
 	Chain    uint16 `json:"chain"`
 	Contract []byte `json:"contract"`
 	Payload  []byte `json:"payload"`
 	Nonce    uint32 `json:"nonce"`
 }
 
-func CreateGatewayIbcTokenBridgePayloadContract(t *testing.T, chainID uint16, contract string, payload []byte, nonce uint32) []byte {
-	msg := GatewayIbcTokenBridgePayloadContractControlled{
-		ContractControlled: ContractControlled{
+func CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t *testing.T, chainID uint16, contract string, payload []byte, nonce uint32) []byte {
+	msg := GatewayIbcTokenBridgePayloadTransferWithPayload{
+		GatewayTransferWithPayload: GatewayTransferWithPayload{
 			Chain:    chainID,
 			Contract: []byte(contract),
 			Payload:  payload,
@@ -256,46 +256,6 @@ func CreateGatewayIbcTokenBridgePayloadContract(t *testing.T, chainID uint16, co
 	require.NoError(t, err)
 
 	return msgBz
-}
-
-type IbcTranslatorExecuteSimple struct {
-	Msg Simple `json:"simple_convert_and_transfer"`
-}
-
-// Temporary method for test the contract interface before the middleware is available
-func CreateIbcTranslatorExecuteSimple(t *testing.T, chainID uint16, recipient string, fee uint64, nonce uint32) string {
-	msg := IbcTranslatorExecuteSimple{
-		Msg: Simple{
-			Chain:     chainID,
-			Recipient: []byte(recipient),
-			Fee:       fmt.Sprint(fee),
-			Nonce:     nonce,
-		},
-	}
-	msgBz, err := json.Marshal(msg)
-	require.NoError(t, err)
-
-	return string(msgBz)
-}
-
-type IbcTranslatorExecuteContractControlled struct {
-	Msg ContractControlled `json:"contract_controlled_convert_and_transfer"`
-}
-
-// Temporary method for testing the contract interface before the middleware is available
-func CreateIbcTranslatorExecuteContractControlled(t *testing.T, chainID uint16, contract string, payload []byte, nonce uint32) string {
-	msg := IbcTranslatorExecuteContractControlled{
-		Msg: ContractControlled{
-			Chain:    chainID,
-			Contract: []byte(contract),
-			Payload:  payload,
-			Nonce:    nonce,
-		},
-	}
-	msgBz, err := json.Marshal(msg)
-	require.NoError(t, err)
-
-	return string(msgBz)
 }
 
 type IbcTranslatorQueryMsg struct {
@@ -314,14 +274,14 @@ type IbcTranslatorQueryRspObj struct {
 	Channel string `json:"channel,omitempty"`
 }
 
-type WormholeMwSimpleMemo struct {
-	GatewayIbcTokenBridgePayloadSimple GatewayIbcTokenBridgePayloadSimple `json:"gateway_ibc_token_bridge_payload"`
+type IbcComposabilityMwMemoGatewayTransfer struct {
+	GatewayIbcTokenBridgePayloadTransfer GatewayIbcTokenBridgePayloadTransfer `json:"gateway_ibc_token_bridge_payload"`
 }
 
-func CreateWormholeMwSimpleMemo(t *testing.T, chainID uint16, recipient []byte, fee uint64, nonce uint32) string {
-	msg := WormholeMwSimpleMemo{
-		GatewayIbcTokenBridgePayloadSimple{
-			Simple: Simple{
+func CreateIbcComposabilityMwMemoGatewayTransfer(t *testing.T, chainID uint16, recipient []byte, fee uint64, nonce uint32) string {
+	msg := IbcComposabilityMwMemoGatewayTransfer{
+		GatewayIbcTokenBridgePayloadTransfer{
+			GatewayTransfer: GatewayTransfer{
 				Chain:     chainID,
 				Recipient: recipient,
 				Fee:       fmt.Sprint(fee),
@@ -336,14 +296,14 @@ func CreateWormholeMwSimpleMemo(t *testing.T, chainID uint16, recipient []byte, 
 	return string(msgBz)
 }
 
-type WormholeMwContractControlledeMemo struct {
-	GatewayIbcTokenBridgePayloadContractControlled GatewayIbcTokenBridgePayloadContractControlled `json:"gateway_ibc_token_bridge_payload"`
+type IbcComposabilityMwMemoGatewayTransferWithPayload struct {
+	GatewayIbcTokenBridgePayloadTransferWithPayload GatewayIbcTokenBridgePayloadTransferWithPayload `json:"gateway_ibc_token_bridge_payload"`
 }
 
-func CreateWormholeMwContractControlledMemo(t *testing.T, chainID uint16, externalContract []byte, payload []byte, nonce uint32) string {
-	msg := WormholeMwContractControlledeMemo{
-		GatewayIbcTokenBridgePayloadContractControlled{
-			ContractControlled: ContractControlled{
+func CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t *testing.T, chainID uint16, externalContract []byte, payload []byte, nonce uint32) string {
+	msg := IbcComposabilityMwMemoGatewayTransferWithPayload{
+		GatewayIbcTokenBridgePayloadTransferWithPayload{
+			GatewayTransferWithPayload: GatewayTransferWithPayload{
 				Chain:    chainID,
 				Contract: externalContract,
 				Payload:  payload,

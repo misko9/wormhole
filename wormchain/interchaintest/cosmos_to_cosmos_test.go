@@ -122,7 +122,7 @@ func TestCosmosToCosmos(t *testing.T) {
 
 	// Create and process a simple ibc payload3: Transfers 1.231245 of asset1 from external chain through wormchain to gaia user
 	// Add relayer fee
-	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
+	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
 	payload3 := helpers.CreatePayload3(wormchain.Config(), 30123, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -145,7 +145,7 @@ func TestCosmosToCosmos(t *testing.T) {
 	gaiaIbcAsset1Denom := transfertypes.ParseDenomTrace(gaiaAsset1Denom).IBCDenom()
 
 	// ************** PFM + Simple payload ****************
-	simplePfmMsg := helpers.CreateWormholeMwSimpleMemo(t, OsmoChainID, []byte(osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix)), 0, 1)
+	simplePfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransfer(t, OsmoChainID, []byte(osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix)), 0, 1)
 	transfer := ibc.WalletAmount{
 		Address: wormchainFaucetAddr,
 		Denom:   gaiaIbcAsset1Denom,
@@ -169,7 +169,7 @@ func TestCosmosToCosmos(t *testing.T) {
 
 	// ********* PFM + Contract controlled payload **********
 	ccPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	ccPfmMsg := helpers.CreateWormholeMwContractControlledMemo(t, OsmoChainID, []byte(ibcHooksContractAddr), ccPayload, 1)
+	ccPfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t, OsmoChainID, []byte(ibcHooksContractAddr), ccPayload, 1)
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,

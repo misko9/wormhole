@@ -203,7 +203,7 @@ pub fn convert_cw20_to_bank_and_send(
 }
 
 // Base58 allows the subdenom to be a maximum of 44 bytes (max subdenom length) for up to a 32 byte address
-fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
+pub fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
     // convert the contract address into bytes
     let contract_addr_bytes = deps.api.addr_canonicalize(&contract_addr).context(format!(
         "could not canonicalize contract address {contract_addr}"
@@ -211,3 +211,31 @@ fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, 
     let base_58_addr = bs58::encode(contract_addr_bytes.as_slice()).into_string();
     Ok(base_58_addr)
 }
+
+
+/*#[cfg(test)]
+mod tests {
+    use super::contract_addr_to_base58;
+    use super::super::test_setup::default_custom_mock_deps;
+    
+    use cosmwasm_std::{
+        coin,
+        testing::{
+            mock_dependencies, mock_env, mock_info, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
+        },
+        to_binary, to_vec, Addr, Api, BankMsg, Binary, CanonicalAddr, Coin, ContractResult, CosmosMsg,
+        Empty, Env, OwnedDeps, RecoverPubkeyError, Reply, ReplyOn, StdError, StdResult, SubMsgResponse,
+        SystemError, SystemResult, VerificationError, WasmMsg, WasmQuery,
+    };
+
+    #[test]
+    fn contract_addr_to_base58_happy_path() {
+        let deps = default_custom_mock_deps();
+        let b58_str = contract_addr_to_base58(
+            deps.as_ref(),
+            "sei1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdyswk5upj".to_string(),
+        )
+        .unwrap();
+        assert_eq!(b58_str, "3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa");
+    }
+}*/

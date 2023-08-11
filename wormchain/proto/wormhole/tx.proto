@@ -22,6 +22,8 @@ service Msg {
 
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
+  
+  rpc ScheduleUpgrade(MsgScheduleUpgrade) returns (MsgScheduleUpgradeResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
 }
 
@@ -120,3 +122,17 @@ message MsgMigrateContractResponse {
   bytes data = 1;
 }
 // this line is used by starport scaffolding # proto/tx/message
+
+// MsgScheduleUpgrade schedules an upgrade
+message MsgScheduleUpgrade {
+  // Sender is the actor that signs the messages
+  string signer = 1;
+  // Name of upgrade
+  string name = 2;
+  // Height of upgrade
+  uint64 height = 3;
+  // Vaa from governance
+  bytes vaa = 4;
+}
+
+message MsgScheduleUpgradeResponse {}

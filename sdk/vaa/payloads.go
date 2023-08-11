@@ -55,6 +55,7 @@ var (
 	ActionStoreCode           GovernanceAction = 1
 	ActionInstantiateContract GovernanceAction = 2
 	ActionMigrateContract     GovernanceAction = 3
+	ActionScheduleUpgrade     GovernanceAction = 7
 
 	// Accountant goverance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -129,6 +130,11 @@ type (
 	// BodyWormchainInstantiateContract is a governance message to migrate a cosmwasm contract on wormchain
 	BodyWormchainMigrateContract struct {
 		MigrationParamsHash [32]byte
+	}
+
+	BodyWormchainScheduleUpgrade struct {
+		Name   string
+		Height uint64
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -249,6 +255,19 @@ func (r BodyWormchainInstantiateContract) Serialize() []byte {
 func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
+
+func (r BodyWormchainScheduleUpgrade) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write([]byte(r.Name))
+	MustWrite(payload, binary.BigEndian, r.Height)
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyWormchainScheduleUpgrade) Deserialize(bz []byte) {
+	r.Name = string(bz[0:len(bz)-8])
+	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
+}
+
 
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, r.TargetChainID, []byte{r.Finality})

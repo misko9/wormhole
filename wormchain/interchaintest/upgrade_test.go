@@ -1,9 +1,11 @@
 package ictest
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/strangelove-ventures/interchaintest/v4"
@@ -32,27 +34,6 @@ import (
 
 // Note: once wormchain is added to heighliner, setup will not be required. Will just need to run the test case / last step.
 
-var (
-	GaiaChainID = uint16(11)
-	OsmoChainID = uint16(12)
-
-	ExternalChainId          = uint16(123)
-	ExternalChainEmitterAddr = "0x123EmitterAddress"
-
-	Asset1Name         = "Wrapped BTC"
-	Asset1Symbol       = "XBTC"
-	Asset1ContractAddr = "0xXBTC"
-	Asset1ChainID      = ExternalChainId
-	Asset1Decimals     = uint8(6)
-
-	AmountExternalToGaiaUser1       = 10_000_018
-	AmountExternalToOsmoUser1       = 1_000_001
-	AmountExternalToOsmoUser2       = 1_000_002
-	AmountGaiaUser1ToExternalSimple = 1_000_003
-	AmountGaiaUser1ToExternalCC     = 1_000_004
-	AmountGaiaUser1ToOsmoUser1      = 1_000_005
-	AmountGaiaUser1ToOsmoUser2      = 1_000_006
-)
 
 // TestWormchain runs through a simple test case for each deliverable
 //   - Setup wormchain, gaia, and osmosis including contracts/allowlists/etc
@@ -70,13 +51,13 @@ var (
 //     -- gaia user 1 now has 6.000_000 of asset 1
 //     -- osmo user 2 now has 2.000_008 of asset 1
 //   - Verify asset 1 balance of gaia user 1, osmo user 1, osmo user 2, and cw20 contract total supply
-func TestWormchain(t *testing.T) {
+func TestUpgrade(t *testing.T) {
 	t.Parallel()
 
 	// Base setup
 	guardians := guardians.CreateValSet(t, numVals)
 	chains := CreateChains(t, *guardians)
-	ctx, r, eRep, _ := BuildInterchain(t, chains)
+	ctx, r, eRep, client := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
@@ -98,6 +79,91 @@ func TestWormchain(t *testing.T) {
 	gaiaUser := users[1]
 	osmoUser1 := users[2]
 	osmoUser2 := users[3]
+
+
+	///////////////////////////////////////////////////////////////
+	// ************** v1 -> v2 (just replace binary) **************
+	///////////////////////////////////////////////////////////////
+
+	haltHeight, err := wormchain.Height(ctx)
+	blocksAfterUpgrade := uint64(10)
+
+	// bring down nodes to prepare for upgrade
+	err = wormchain.StopAllNodes(ctx)
+	require.NoError(t, err, "error stopping node(s)")
+
+	// upgrade version on all nodes
+	wormchain.UpgradeVersion(ctx, client, "localv2")
+
+	// start all nodes back up.
+	// validators reach consensus on first block after upgrade height
+	// and chain block production resumes.
+	err = wormchain.StartAllNodes(ctx)
+	require.NoError(t, err, "error starting upgraded node(s)")
+
+	timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*45)
+	defer timeoutCtxCancel()
+
+	err = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
+	require.NoError(t, err, "chain did not produce blocks after upgrade")
+
+	height, err := wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height after upgrade")
+
+	require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
+
+
+	///////////////////////////////////////////////////////////////
+	// **************** v2 -> v3 scheduled upgrade ****************
+	///////////////////////////////////////////////////////////////
+
+	// Start v2 -> v3 upgrade test
+	haltHeight = height + blocksAfterUpgrade
+
+	helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v3", haltHeight, guardians)
+
+	timeoutCtx, timeoutCtxCancel = context.WithTimeout(ctx, time.Second*45)
+	defer timeoutCtxCancel()
+
+	height, err = wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height before upgrade")
+
+	// this should timeout due to chain halt at upgrade height.
+	_ = testutil.WaitForBlocks(timeoutCtx, int(haltHeight-height)+1, wormchain)
+
+	height, err = wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height after chain should have halted")
+
+	// make sure that chain is halted
+	require.Equal(t, haltHeight, height, "height is not equal to halt height")
+
+	// bring down nodes to prepare for upgrade
+	err = wormchain.StopAllNodes(ctx)
+	require.NoError(t, err, "error stopping node(s)")
+
+	// upgrade version on all nodes
+	wormchain.UpgradeVersion(ctx, client, "localv3")
+
+	// start all nodes back up.
+	// validators reach consensus on first block after upgrade height
+	// and chain block production resumes.
+	err = wormchain.StartAllNodes(ctx)
+	require.NoError(t, err, "error starting upgraded node(s)")
+
+	timeoutCtx, timeoutCtxCancel = context.WithTimeout(ctx, time.Second*45)
+	defer timeoutCtxCancel()
+
+	err = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
+	require.NoError(t, err, "chain did not produce blocks after upgrade")
+
+	height, err = wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height after upgrade")
+
+	require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
+
+	///////////////////////////////////////////////////////////////
+	// *************** Continue with rest of testing **************
+	///////////////////////////////////////////////////////////////
 
 	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/ibc_hooks.wasm")
 	require.NoError(t, err)
@@ -320,17 +386,4 @@ func TestWormchain(t *testing.T) {
 
 	denomsMetadata := helpers.GetDenomsMetadata(t, ctx, wormchain)
 	fmt.Println("Denoms metadata: ", denomsMetadata)
-}
-
-type QueryMsg struct {
-	GuardianSetInfo *struct{} `json:"guardian_set_info,omitempty"`
-}
-
-type QueryRsp struct {
-	Data *QueryRspObj `json:"data,omitempty"`
-}
-
-type QueryRspObj struct {
-	GuardianSetIndex uint32                    `json:"guardian_set_index"`
-	Addresses        []helpers.GuardianAddress `json:"addresses"`
 }

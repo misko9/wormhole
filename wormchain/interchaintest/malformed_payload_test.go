@@ -25,7 +25,7 @@ func TestMalformedPayload(t *testing.T) {
 	// Base setup
 	guardians := guardians.CreateValSet(t, numVals)
 	chains := CreateChains(t, *guardians)
-	ctx, r, eRep := BuildInterchain(t, chains)
+	ctx, r, eRep, _ := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)

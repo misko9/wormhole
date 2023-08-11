@@ -20,6 +20,7 @@ import (
 	wormholetypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
+	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -38,7 +39,7 @@ var (
 			{
 				Repository: "wormchain",
 				//Version:    "gateway-integration",
-				Version: "local",
+				Version: "localv1",
 				UidGid:  "1025:1025",
 			},
 		},
@@ -99,7 +100,7 @@ func CreateChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 	return chains
 }
 
-func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Relayer, *testreporter.RelayerExecReporter) {
+func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Relayer, *testreporter.RelayerExecReporter, *client.Client) {
 	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
 	ic := interchaintest.NewInterchain()
 
@@ -156,7 +157,7 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 		},
 	)
 
-	return ctx, r, eRep
+	return ctx, r, eRep, client
 }
 
 // Modify the genesis file:

@@ -18,12 +18,48 @@ use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 mod test_setup;
 use test_setup::*;
 
+// Tests
+// 1. complete_transfer_and_convert (done)
+//    1. happy path (done)
+//    2. no token bridge state (done)
+//    3. failure transferinfo query (done)
+//    4. failure humanize recipient (done)
+//    5. no match recipient contract (done)
+// 2. convert_and_transfer (done)
+//    1. happy path (done)
+//    2. no token bridge state (done)
+//    3. no funds (done)
+//    4. too many funds (done)
+//    5. parse method failure (done)
+// 3. parse_bank_token_factory_contract (done)
+//    1. happy path (done)
+//    2. failure denom length (done)
+//    3. failure non factory token (done)
+//    4. failure non contract created (done)
+//    5. failure base58 decode failure (done)
+//    6. failure no storage (done)
+//    7. failure storage mismatch (done)
+// 4. contract_addr_from_base58 (done)
+//    1. happy path (done)
+//    2. failure decode base58 (done)
+// 5. TODO submit_update_chain_to_channel_map
+// TODO    1. happy path
+// TODO   2. failed to parse vaa
+// TODO   3. unsupported VAA version
+// .   4. failed to verify vaa
+// .   5. not a governance vaa
+// .   6. failed to parse governance packet
+// .   7. governance vaa is for another chain
+// .   8. governance vaa already executed
+// .   9. chain is for wormchain
+// .   10. failed to parse channel-id
+
 // TESTS: complete_transfer_and_convert
 // 1. Happy path
 #[test]
 fn complete_transfer_and_convert_happy_path() {
     let mut deps = execute_custom_mock_deps();
-    let env = mock_env_custom_contract(SEI_CONTRACT_ADDR);
+    let env = mock_env_custom_contract(WORMHOLE_CONTRACT_ADDR);
 
     let transfer_info_response = TransferInfoResponse {
         amount: 1000000u32.into(),
@@ -53,7 +89,7 @@ fn complete_transfer_and_convert_happy_path() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
     let response = complete_transfer_and_convert(deps.as_mut(), env, info, vaa).unwrap();
@@ -68,7 +104,7 @@ fn complete_transfer_and_convert_happy_path() {
         response.messages[0].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: token_bridge_addr,
-            msg: Binary::from_base64("eyJjb21wbGV0ZV90cmFuc2Zlcl93aXRoX3BheWxvYWQiOnsiZGF0YSI6IkFBQUFBQT09IiwicmVsYXllciI6InNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdiJ9fQ==").unwrap(),
+            msg: Binary::from_base64("eyJjb21wbGV0ZV90cmFuc2Zlcl93aXRoX3BheWxvYWQiOnsiZGF0YSI6IkFBQUFBQT09IiwicmVsYXllciI6Indvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwIn19").unwrap(),
             funds: vec![]
         })
     );
@@ -95,7 +131,7 @@ fn complete_transfer_and_convert_happy_path() {
 #[test]
 fn complete_transfer_and_convert_no_token_bridge_state() {
     let mut deps = execute_custom_mock_deps();
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let env = mock_env();
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
@@ -125,7 +161,7 @@ fn complete_transfer_and_convert_failure_transferinfo_query() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let env = mock_env();
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
@@ -164,7 +200,7 @@ fn complete_transfer_and_convert_failure_humanize_recipient() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
     let err = complete_transfer_and_convert(deps.as_mut(), env, info, vaa).unwrap_err();
@@ -202,7 +238,7 @@ fn complete_transfer_and_convert_nomatch_recipient_contract() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
     let err = complete_transfer_and_convert(deps.as_mut(), env, info, vaa).unwrap_err();
@@ -224,13 +260,13 @@ fn convert_and_transfer_happy_path() {
     CW_DENOMS
         .save(
             deps.as_mut().storage,
-            SEI_CONTRACT_ADDR.to_string(),
+            WORMHOLE_CONTRACT_ADDR.to_string(),
             &tokenfactory_denom,
         )
         .unwrap();
     let coin = coin(1, tokenfactory_denom.clone());
 
-    let info = mock_info(SEI_USER_ADDR, &vec![coin.clone()]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin.clone()]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -262,7 +298,7 @@ fn convert_and_transfer_happy_path() {
     );
     expected_response = expected_response.add_message(
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: SEI_CONTRACT_ADDR.to_string(),
+            contract_addr: WORMHOLE_CONTRACT_ADDR.to_string(),
             msg: Binary::from_base64("eyJpbmNyZWFzZV9hbGxvd2FuY2UiOnsic3BlbmRlciI6ImZha2V0b2tlbmJyaWRnZSIsImFtb3VudCI6IjEiLCJleHBpcmVzIjpudWxsfX0=").unwrap(),
             funds: vec![]
         })
@@ -270,7 +306,7 @@ fn convert_and_transfer_happy_path() {
     expected_response = expected_response.add_message(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: token_bridge_addr,
-            msg: Binary::from_base64("eyJpbml0aWF0ZV90cmFuc2ZlciI6eyJhc3NldCI6eyJpbmZvIjp7InRva2VuIjp7ImNvbnRyYWN0X2FkZHIiOiJzZWkxeXc0d3YyenFnOXhrbjY3enZxM2F6eWUwdDhoMHg5a2d5ZzNkNTNqeW0yNGd4dDQ5dmR5c3drNXVwaiJ9fSwiYW1vdW50IjoiMSJ9LCJyZWNpcGllbnRfY2hhaW4iOjIsInJlY2lwaWVudCI6IkFBQUFBQUFBQUFBQUFBQUFqeWFnQWwzTXhzL0FlbjA0ZFdLQW9RNHBXdGM9IiwiZmVlIjoiMCIsIm5vbmNlIjowfX0=").unwrap(),
+            msg: Binary::from_base64("eyJpbml0aWF0ZV90cmFuc2ZlciI6eyJhc3NldCI6eyJpbmZvIjp7InRva2VuIjp7ImNvbnRyYWN0X2FkZHIiOiJ3b3JtaG9sZTF5dzR3djJ6cWc5eGtuNjd6dnEzYXp5ZTB0OGgweDlrZ3lnM2Q1M2p5bTI0Z3h0NDl2ZHlzNnM4aDdhIn19LCJhbW91bnQiOiIxIn0sInJlY2lwaWVudF9jaGFpbiI6MiwicmVjaXBpZW50IjoiQUFBQUFBQUFBQUFBQUFBQWp5YWdBbDNNeHMvQWVuMDRkV0tBb1E0cFd0Yz0iLCJmZWUiOiIwIiwibm9uY2UiOjB9fQ==").unwrap(),
             funds: vec![]
         })
     );
@@ -298,7 +334,7 @@ fn convert_and_transfer_happy_path() {
 #[test]
 fn convert_and_transfer_no_token_bridge_state() {
     let mut deps = execute_custom_mock_deps();
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -332,7 +368,7 @@ fn convert_and_transfer_no_funds() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -363,7 +399,7 @@ fn convert_and_transfer_too_many_funds() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![coin(1, "denomA"), coin(1, "denomB")]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin(1, "denomA"), coin(1, "denomB")]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -394,7 +430,7 @@ fn convert_and_transfer_parse_method_failure() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(SEI_USER_ADDR, &vec![coin(1, "denomA")]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin(1, "denomA")]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -430,13 +466,13 @@ fn parse_bank_token_factory_contract_happy_path() {
     CW_DENOMS
         .save(
             deps.as_mut().storage,
-            SEI_CONTRACT_ADDR.to_string(),
+            WORMHOLE_CONTRACT_ADDR.to_string(),
             &tokenfactory_denom,
         )
         .unwrap();
 
     let contract_addr = parse_bank_token_factory_contract(deps.as_mut(), env, coin).unwrap();
-    assert_eq!(contract_addr, SEI_CONTRACT_ADDR);
+    assert_eq!(contract_addr, WORMHOLE_CONTRACT_ADDR);
 }
 
 // 2. Failure: parsed denom not of length 3
@@ -522,7 +558,7 @@ fn parse_bank_token_factory_contract_failure_storage_mismatch() {
     CW_DENOMS
         .save(
             deps.as_mut().storage,
-            SEI_CONTRACT_ADDR.to_string(),
+            WORMHOLE_CONTRACT_ADDR.to_string(),
             &"factory/fake/fake".to_string(),
         )
         .unwrap();
@@ -546,7 +582,7 @@ fn contract_addr_from_base58_happy_path() {
     .unwrap();
     assert_eq!(
         contract_addr,
-        "sei1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdyswk5upj"
+        "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a"
     );
 }
 

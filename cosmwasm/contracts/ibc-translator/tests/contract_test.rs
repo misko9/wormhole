@@ -19,6 +19,23 @@ use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 mod test_setup;
 use test_setup::*;
 
+// TESTS
+// 1. instantiate
+//    1. happy path
+//    2. no storage
+// 2. migrate
+//    1. happy path
+// 3. execute
+//    1. CompleteTransferAndConvert
+//    2. GatewayConvertAndTransfer
+//    3. GatewayConvertAndTransferWithPaylod
+//    4. SubmitUpdateChainToChannelMap
+// 4. reply
+//    1. happy path (done)
+//    2. no id match (done)
+// 5. query
+//    1. happy path
+
 // TESTS: reply
 // 1. Happy path: REPLY ID matches
 #[test]

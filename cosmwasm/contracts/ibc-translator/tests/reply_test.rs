@@ -28,211 +28,31 @@ struct MsgExecuteContractResponse {
     pub data: ::prost::alloc::vec::Vec<u8>,
 }
 
+// Tests
+// 1. handle_complete_transfer_reply
+//    1. happy path, GatewayTransfer (done)
+// TODO    1. happy path, GatewayTransferWithPayload
+//    2. bad msg result (done)
+//    3. invalid response data (done)
+//    4. no repsonse data (done)
+//    5. invalid reponse data type (done)
+//    6. no reponse contract (done)
+//    7. no storage (done)
+//    8. wrong stored payload (done)
+//    9. invalid recipient (done)
+// TODO    10. invalid contract
+// 2. convert_cw20_to_bank_and_send
+//    1. happy path (done)
+//    2. happy path create denom (done)
+//    3. failure invalid contract (done)
+// TODO 4. chain id no channel
+// TODO 5. bad payload
+// 3. contract_addr_to_base58 (done)
+//    1. happy path (done)
+//    2. bad contract address (done)
+
+
 // Test handle_complete_transfer_reply
-
-// Test convert_cw20_to_bank_and_send
-// TESTS: convert_cw20_to_bank
-// 1. Happy path
-#[test]
-fn convert_cw20_to_bank_and_send_happy_path() {
-    let mut deps = default_custom_mock_deps();
-    let env = mock_env();
-    let recipient = SEI_USER_ADDR.to_string();
-    let amount = 1;
-    let contract_addr = SEI_CONTRACT_ADDR.to_string();
-
-    let tokenfactory_denom =
-        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
-    CW_DENOMS
-        .save(
-            deps.as_mut().storage,
-            contract_addr.clone(),
-            &tokenfactory_denom,
-        )
-        .unwrap();
-
-    let chain_id = Chain::Ethereum;
-    let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
-
-    let response = convert_cw20_to_bank_and_send(
-        deps.as_mut(),
-        env,
-        recipient.clone(),
-        amount.clone(),
-        contract_addr,
-        chain_id.into(),
-        None,
-    )
-    .unwrap();
-
-    // response should have 2 messages:
-    assert_eq!(response.messages.len(), 2);
-
-    let mut expected_response: Response<TokenFactoryMsg> = Response::new();
-    expected_response = expected_response.add_message(TokenMsg::MintTokens {
-        denom: tokenfactory_denom.clone(),
-        amount,
-        mint_to_address: "cosmos2contract".to_string(),
-    });
-    expected_response = expected_response.add_message(Stargate {
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqKnNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdji9oujIzrGc6hU=").unwrap(),
-    });
-    
-    // 1. TokenMsg::MintTokens
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
-
-    // 2. Stargate ibc transfer
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
-}
-
-// 2. Happy path + CreateDenom on TokenFactory
-#[test]
-fn convert_cw20_to_bank_happy_path_create_denom() {
-    let mut deps = default_custom_mock_deps();
-    let env = mock_env();
-    let recipient = SEI_USER_ADDR.to_string();
-    let amount = 1;
-    let contract_addr = SEI_CONTRACT_ADDR.to_string();
-
-    let tokenfactory_denom =
-        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
-    let subdenom = "3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
-
-    let chain_id = Chain::Ethereum;
-    let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
-
-    let token_info_response = TokenInfoResponse {
-        name: "TestCoin".to_string(),
-        symbol: "TEST".to_string(),
-        decimals: 6,
-        total_supply: Uint128::new(10_000_000),
-    };
-    let token_info_response_copy = token_info_response.clone();
-    deps.querier.update_wasm(move |q| match q {
-        WasmQuery::Smart {
-            contract_addr: _,
-            msg: _,
-        } => SystemResult::Ok(ContractResult::Ok(
-            to_binary(&token_info_response_copy).unwrap(),
-        )),
-        _ => SystemResult::Err(SystemError::UnsupportedRequest {
-            kind: "wasm".to_string(),
-        }),
-    });
-
-    // Populate token factory token's metadata from cw20 token's metadata
-    let tf_description = token_info_response.name.clone()
-        + ", "
-        + token_info_response.symbol.as_str()
-        + ", "
-        + tokenfactory_denom.as_str();
-    let tf_denom_unit_base = DenomUnit {
-        denom: tokenfactory_denom.clone(),
-        exponent: 0,
-        aliases: vec![],
-    };
-    let tf_scaled_denom = "wormhole/".to_string()
-        + subdenom.as_str()
-        + "/"
-        + token_info_response.decimals.to_string().as_str();
-    let tf_denom_unit_scaled = DenomUnit {
-        denom: tf_scaled_denom,
-        exponent: u32::from(token_info_response.decimals),
-        aliases: vec![],
-    };
-    let tf_metadata = Metadata {
-        description: Some(tf_description),
-        base: Some(tokenfactory_denom.clone()),
-        denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
-        display: Some(tokenfactory_denom.clone()),
-        name: Some(token_info_response.name),
-        symbol: Some(token_info_response.symbol),
-    };
-
-    let response = convert_cw20_to_bank_and_send(
-        deps.as_mut(),
-        env,
-        recipient.clone(),
-        amount.clone(),
-        contract_addr,
-        chain_id.into(),
-        None,
-    )
-    .unwrap();
-
-    // response should have 3 messages:
-    assert_eq!(response.messages.len(), 3);
-
-
-    let mut expected_response: Response<TokenFactoryMsg> = Response::new();
-    expected_response = expected_response.add_message(TokenMsg::CreateDenom {
-        subdenom: subdenom,
-        metadata: Some(tf_metadata),
-    });
-    expected_response = expected_response.add_message(TokenMsg::MintTokens {
-        denom: tokenfactory_denom.clone(),
-        amount,
-        mint_to_address: "cosmos2contract".to_string(),
-    });
-    expected_response = expected_response.add_message(Stargate {
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqKnNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdji9oujIzrGc6hU=").unwrap(),
-    });
-    
-    // 1. TokenMsg::CreateDenom
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
-
-    // 2. TokenMsg::MintTokens
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
-
-    // 3. Stargate ibc transfer
-    assert_eq!(
-        response.messages[2].msg,
-        expected_response.messages[2].msg,
-    );
-}
-
-// 3. Failure: couldn't validate contract address
-#[test]
-fn convert_cw20_to_bank_failure_invalid_contract() {
-    let mut deps = default_custom_mock_deps();
-    let env = mock_env();
-    let recipient = SEI_USER_ADDR.to_string();
-    let amount = 1;
-    let contract_addr = "badContractAddr".to_string();
-    let chain_id = Chain::Ethereum;
-
-    let method_err =
-        convert_cw20_to_bank_and_send(
-            deps.as_mut(),
-            env,
-            recipient,
-            amount,
-            contract_addr,
-            chain_id.into(),
-            None,
-        ).unwrap_err();
-    assert_eq!(
-        method_err.to_string(),
-        "invalid contract address badContractAddr"
-    );
-}
-
 
 // TESTS: handle_complete_transfer_reply
 // 1. Happy path: calls convert_cw20_to_bank
@@ -488,19 +308,232 @@ fn handle_complete_transfer_reply_invalid_recipient() {
 }
 
 
+// Test convert_cw20_to_bank_and_send
+// TESTS: convert_cw20_to_bank
+// 1. Happy path
+#[test]
+fn convert_cw20_to_bank_and_send_happy_path() {
+    let mut deps = default_custom_mock_deps();
+    let env = mock_env();
+    let recipient = WORMHOLE_USER_ADDR.to_string();
+    let amount = 1;
+    let contract_addr = WORMHOLE_CONTRACT_ADDR.to_string();
+
+    let tokenfactory_denom =
+        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
+    CW_DENOMS
+        .save(
+            deps.as_mut().storage,
+            contract_addr.clone(),
+            &tokenfactory_denom,
+        )
+        .unwrap();
+
+    let chain_id = Chain::Ethereum;
+    let channel = "channel-0".to_string();
+    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
+
+    let response = convert_cw20_to_bank_and_send(
+        deps.as_mut(),
+        env,
+        recipient.clone(),
+        amount.clone(),
+        contract_addr,
+        chain_id.into(),
+        None,
+    )
+    .unwrap();
+
+    // response should have 2 messages:
+    assert_eq!(response.messages.len(), 2);
+
+    let mut expected_response: Response<TokenFactoryMsg> = Response::new();
+    expected_response = expected_response.add_message(TokenMsg::MintTokens {
+        denom: tokenfactory_denom.clone(),
+        amount,
+        mint_to_address: "cosmos2contract".to_string(),
+    });
+    expected_response = expected_response.add_message(Stargate {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2i6MjOsZzqFQ==").unwrap(),
+    });
+    
+    // 1. TokenMsg::MintTokens
+    assert_eq!(
+        response.messages[0].msg,
+        expected_response.messages[0].msg,
+    );
+
+    // 2. Stargate ibc transfer
+    assert_eq!(
+        response.messages[1].msg,
+        expected_response.messages[1].msg,
+    );
+}
+
+// 2. Happy path + CreateDenom on TokenFactory
+#[test]
+fn convert_cw20_to_bank_happy_path_create_denom() {
+    let mut deps = default_custom_mock_deps();
+    let env = mock_env();
+    let recipient = WORMHOLE_USER_ADDR.to_string();
+    let amount = 1;
+    let contract_addr = WORMHOLE_CONTRACT_ADDR.to_string();
+
+    let tokenfactory_denom =
+        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
+    let subdenom = "3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
+
+    let chain_id = Chain::Ethereum;
+    let channel = "channel-0".to_string();
+    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
+
+    let token_info_response = TokenInfoResponse {
+        name: "TestCoin".to_string(),
+        symbol: "TEST".to_string(),
+        decimals: 6,
+        total_supply: Uint128::new(10_000_000),
+    };
+    let token_info_response_copy = token_info_response.clone();
+    deps.querier.update_wasm(move |q| match q {
+        WasmQuery::Smart {
+            contract_addr: _,
+            msg: _,
+        } => SystemResult::Ok(ContractResult::Ok(
+            to_binary(&token_info_response_copy).unwrap(),
+        )),
+        _ => SystemResult::Err(SystemError::UnsupportedRequest {
+            kind: "wasm".to_string(),
+        }),
+    });
+
+    // Populate token factory token's metadata from cw20 token's metadata
+    let tf_description = token_info_response.name.clone()
+        + ", "
+        + token_info_response.symbol.as_str()
+        + ", "
+        + tokenfactory_denom.as_str();
+    let tf_denom_unit_base = DenomUnit {
+        denom: tokenfactory_denom.clone(),
+        exponent: 0,
+        aliases: vec![],
+    };
+    let tf_scaled_denom = "wormhole/".to_string()
+        + subdenom.as_str()
+        + "/"
+        + token_info_response.decimals.to_string().as_str();
+    let tf_denom_unit_scaled = DenomUnit {
+        denom: tf_scaled_denom,
+        exponent: u32::from(token_info_response.decimals),
+        aliases: vec![],
+    };
+    let tf_metadata = Metadata {
+        description: Some(tf_description),
+        base: Some(tokenfactory_denom.clone()),
+        denom_units: vec![tf_denom_unit_base, tf_denom_unit_scaled],
+        display: Some(tokenfactory_denom.clone()),
+        name: Some(token_info_response.name),
+        symbol: Some(token_info_response.symbol),
+    };
+
+    let response = convert_cw20_to_bank_and_send(
+        deps.as_mut(),
+        env,
+        recipient.clone(),
+        amount.clone(),
+        contract_addr,
+        chain_id.into(),
+        None,
+    )
+    .unwrap();
+
+    // response should have 3 messages:
+    assert_eq!(response.messages.len(), 3);
 
 
+    let mut expected_response: Response<TokenFactoryMsg> = Response::new();
+    expected_response = expected_response.add_message(TokenMsg::CreateDenom {
+        subdenom: subdenom,
+        metadata: Some(tf_metadata),
+    });
+    expected_response = expected_response.add_message(TokenMsg::MintTokens {
+        denom: tokenfactory_denom.clone(),
+        amount,
+        mint_to_address: "cosmos2contract".to_string(),
+    });
+    expected_response = expected_response.add_message(Stargate {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2i6MjOsZzqFQ==").unwrap(),
+    });
+    
+    // 1. TokenMsg::CreateDenom
+    assert_eq!(
+        response.messages[0].msg,
+        expected_response.messages[0].msg,
+    );
 
+    // 2. TokenMsg::MintTokens
+    assert_eq!(
+        response.messages[1].msg,
+        expected_response.messages[1].msg,
+    );
 
+    // 3. Stargate ibc transfer
+    assert_eq!(
+        response.messages[2].msg,
+        expected_response.messages[2].msg,
+    );
+}
 
+// 3. Failure: couldn't validate contract address
+#[test]
+fn convert_cw20_to_bank_failure_invalid_contract() {
+    let mut deps = default_custom_mock_deps();
+    let env = mock_env();
+    let recipient = WORMHOLE_USER_ADDR.to_string();
+    let amount = 1;
+    let contract_addr = "badContractAddr".to_string();
+    let chain_id = Chain::Ethereum;
 
+    let method_err =
+        convert_cw20_to_bank_and_send(
+            deps.as_mut(),
+            env,
+            recipient,
+            amount,
+            contract_addr,
+            chain_id.into(),
+            None,
+        ).unwrap_err();
+    assert_eq!(
+        method_err.to_string(),
+        "invalid contract address badContractAddr"
+    );
+}
+
+// 1. happy path
 #[test]
 fn contract_addr_to_base58_happy_path() {
     let deps = default_custom_mock_deps();
     let b58_str = contract_addr_to_base58(
         deps.as_ref(),
-        "sei1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdyswk5upj".to_string(),
+        "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string(),
     )
     .unwrap();
     assert_eq!(b58_str, "3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa");
+}
+
+// 2. bad contract address, could not canonicalize contract address
+#[test]
+fn contract_addr_to_base58_bad_contract_address() {
+    let deps = default_custom_mock_deps();
+    let method_err = contract_addr_to_base58(
+        deps.as_ref(),
+        "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7".to_string(),
+    )
+    .unwrap_err();
+    assert_eq!(
+        method_err.to_string(),
+        "could not canonicalize contract address wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7"
+    )
 }

@@ -154,23 +154,14 @@ func TestWormchain(t *testing.T) {
 			fmt.Println("Halt height:", i, " : ", haltHeight)
 
 			// bring down nodes to prepare for upgrade
-			if i != 1 {
-				err = wormchain.StopANode(ctx, i)
-				require.NoError(t, err, "error stopping node(s)")
-			}
+			err = wormchain.StopANode(ctx, i)
+			require.NoError(t, err, "error stopping node(s)")
 			
 			// start all nodes back up.
 			// validators reach consensus on first block after upgrade height
 			// and chain block production resumes.
 			err = wormchain.StartANode(ctx, i)
 			require.NoError(t, err, "error starting upgraded node(s)")
-
-			if i+1 == numVals {
-				err = wormchain.StopANode(ctx, i+1)
-				require.NoError(t, err, "error stopping node(s)")
-				err = wormchain.StartANode(ctx, i+1)
-				require.NoError(t, err, "error starting upgraded node(s)")
-			}
 
 			timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*45)
 			defer timeoutCtxCancel()

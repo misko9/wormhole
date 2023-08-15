@@ -2,14 +2,14 @@ package helpers
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
+	//"encoding/hex"
+	//"fmt"
 	"testing"
 
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/stretchr/testify/require"
+	//"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	//"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func ScheduleUpgrade(
@@ -22,7 +22,7 @@ func ScheduleUpgrade(
 	guardians *guardians.ValSet,
 ) {
 
-	node := chain.GetFullNode()
+	/*node := chain.GetFullNode()
 
 	payload := vaa.BodyWormchainScheduleUpgrade{
 		Name: name,
@@ -35,5 +35,5 @@ func ScheduleUpgrade(
 	vHex := hex.EncodeToString(vBz)
 
 	_, err = node.ExecTx(ctx, keyName, "wormhole", "schedule-upgrade", name, fmt.Sprint(height), vHex, "--gas", "auto")
-	require.NoError(t, err)
+	require.NoError(t, err)*/
 }

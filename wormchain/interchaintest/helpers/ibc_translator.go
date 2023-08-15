@@ -17,43 +17,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func GetMiddlewareContract(
-	t *testing.T,
-	ctx context.Context,
-	chain *cosmos.CosmosChain,
-) string {
-	node := chain.GetFullNode()
-	stdout, _, err := node.ExecQuery(ctx, "wormhole", "show-ibc-composability-mw-contract")
-	require.NoError(t, err)
-	return string(stdout)
-}
-
-func SetMiddlewareContract(
-	t *testing.T,
-	ctx context.Context,
-	chain *cosmos.CosmosChain,
-	keyName string,
-	cfg ibc.ChainConfig,
-	contractBech32Addr string,
-	guardians *guardians.ValSet,
-) {
-	node := chain.GetFullNode()
-
-	contractAddr := [32]byte{}
-	copy(contractAddr[:], MustAccAddressFromBech32(contractBech32Addr, cfg.Bech32Prefix).Bytes())
-	payload := vaa.BodyWormchainIbcComposabilityMwContract{
-		ContractAddr: contractAddr,
-	}
-	payloadBz := payload.Serialize()
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
-	vBz, err := v.Marshal()
-	require.NoError(t, err)
-	vHex := hex.EncodeToString(vBz)
-
-	_, err = node.ExecTx(ctx, keyName, "wormhole", "set-ibc-composability-mw-contract", contractBech32Addr, vHex, "--gas", "auto")
-	require.NoError(t, err)
-}
-
 func SubmitAllowlistInstantiateContract(
 	t *testing.T,
 	ctx context.Context,

@@ -38,8 +38,8 @@ var (
 		Images: []ibc.DockerImage{
 			{
 				Repository: "wormchain",
-				//Version:    "gateway-integration",
 				Version: "localv1",
+				//Version: "local",
 				UidGid:  "1025:1025",
 			},
 		},
@@ -53,7 +53,7 @@ var (
 		NoHostMount:    false,
 		EncodingConfig: wormchainEncoding(),
 	}
-	numVals      = 1
+	numVals      = 5
 	numFullNodes = 1
 )
 

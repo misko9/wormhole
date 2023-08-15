@@ -38,7 +38,7 @@ var (
 		Images: []ibc.DockerImage{
 			{
 				Repository: "wormchain",
-				Version: "localv1",
+				Version: "local18",
 				//Version: "local",
 				UidGid:  "1025:1025",
 			},

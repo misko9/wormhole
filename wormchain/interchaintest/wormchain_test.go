@@ -105,7 +105,7 @@ func TestWormchain(t *testing.T) {
 	// ********* Upgrade to new version of wormchain ***************
 	// *************************************************************
 
-	// If true, upgrade half the nodes, produce blocks, upgrade second half, continue test
+	// If true, upgrades nodes one at a time
 	upgradeOneAtATime := true
 
 	// If true, upgrade all nodes at the same time
@@ -122,7 +122,7 @@ func TestWormchain(t *testing.T) {
 		require.NoError(t, err, "error stopping node(s)")
 
 		// upgrade version on all nodes
-		wormchain.UpgradeVersion(ctx, client, "local")
+		wormchain.UpgradeVersion(ctx, client, "local22")
 
 		// start all nodes back up.
 		// validators reach consensus on first block after upgrade height
@@ -147,7 +147,7 @@ func TestWormchain(t *testing.T) {
 		blocksAfterUpgrade := uint64(10)
 
 		// upgrade version on all nodes
-		wormchain.UpgradeVersion(ctx, client, "local")
+		wormchain.UpgradeVersion(ctx, client, "local22")
 		
 		for i := 0; i < numVals; i++ {
 			haltHeight, err := wormchain.Height(ctx)
@@ -162,6 +162,14 @@ func TestWormchain(t *testing.T) {
 			// and chain block production resumes.
 			err = wormchain.StartANode(ctx, i)
 			require.NoError(t, err, "error starting upgraded node(s)")
+
+			// Restart the fullnode with the last validator
+			if i+1 == numVals {
+				err = wormchain.StopANode(ctx, i+1)
+				require.NoError(t, err, "error stopping node(s)")
+				err = wormchain.StartANode(ctx, i+1)
+				require.NoError(t, err, "error starting upgraded node(s)")
+			}
 
 			timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*45)
 			defer timeoutCtxCancel()

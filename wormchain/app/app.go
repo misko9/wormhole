@@ -111,9 +111,9 @@ import (
 	ibchookskeeper "github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 	ibchookstypes "github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
 
-	packetforward "github.com/strangelove-ventures/packet-forward-middleware/v4/router"
-	packetforwardkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
-	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
+	packetforward "github.com/wormhole-foundation/wormchain/x/packet-forward-middleware/router"
+	packetforwardkeeper "github.com/wormhole-foundation/wormchain/x/packet-forward-middleware/router/keeper"
+	packetforwardtypes "github.com/wormhole-foundation/wormchain/x/packet-forward-middleware/router/types"
 
 	ibccomposabilitymw "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw"
 	ibccomposabilitymwkeeper "github.com/wormhole-foundation/wormchain/x/ibc-composability-mw/keeper"
@@ -317,10 +317,9 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
-		wormholemoduletypes.StoreKey, ibccomposabilitytypes.StoreKey,
+		wormholemoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
-		wasm.StoreKey, tokenfactorytypes.StoreKey,
-		ibchookstypes.StoreKey, packetforwardtypes.StoreKey,
+		wasm.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -427,7 +426,7 @@ func New(
 	)
 
 	app.TokenFactoryKeeper = tokenfactorykeeper.NewKeeper(
-		app.keys[tokenfactorytypes.StoreKey],
+		app.keys[wormholemoduletypes.StoreKey],
 		app.GetSubspace(tokenfactorytypes.ModuleName),
 		app.AccountKeeper,
 		app.BankKeeper,
@@ -843,7 +842,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	// Configure the ibc composability mw keeper
 	ibcComposabilityMwKeeper := ibccomposabilitymwkeeper.NewKeeper(
 		app.appCodec,
-		app.keys[ibccomposabilitytypes.StoreKey],
+		app.keys[wormholemoduletypes.StoreKey],
 		nil, // Wasm keeper is set later
 		wk,
 		0,
@@ -858,7 +857,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 
 	// Configure the hooks keeper
 	ibcHooksKeeper := ibchookskeeper.NewKeeper(
-		app.keys[ibchookstypes.StoreKey],
+		app.keys[wormholemoduletypes.StoreKey],
 	)
 	app.IBCHooksKeeper = &ibcHooksKeeper
 
@@ -891,7 +890,7 @@ func (app *App) WireICS20PreWasmKeeper(wk *wormholemodulekeeper.Keeper) {
 	// Initialize packet forward middleware router
 	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
 		app.appCodec,
-		app.keys[packetforwardtypes.StoreKey],
+		app.keys[wormholemoduletypes.StoreKey],
 		app.GetSubspace(packetforwardtypes.ModuleName),
 		app.TransferKeeper,
 		app.IBCKeeper.ChannelKeeper,

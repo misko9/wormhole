@@ -10,6 +10,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/store/prefix"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
@@ -124,7 +125,7 @@ func (k Keeper) OnRecvPacket(
 	if isNewMemoPfm {
 		// Store orginal data to save while packet is in flight (PFM-only)
 		key := types.TransposedDataKey(packet.DestinationChannel, packet.DestinationPort, packet.Sequence)
-		store := ctx.KVStore(k.storeKey)
+		store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.TransposedDataKeyPrefix))
 		store.Set(key, packet.GetData())
 	}
 
@@ -139,7 +140,7 @@ func (k Keeper) GetAndClearTransposedData(
 	port string,
 	sequence uint64,
 ) []byte {
-	store := ctx.KVStore(k.storeKey)
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.TransposedDataKeyPrefix))
 	key := types.TransposedDataKey(channel, port, sequence)
 	if !store.Has(key) {
 		return nil

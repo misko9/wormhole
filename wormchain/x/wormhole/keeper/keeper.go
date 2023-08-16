@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	pfmkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
+	pfmkeeper "github.com/wormhole-foundation/wormchain/x/packet-forward-middleware/router/keeper"
 	tokenfactorykeeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )

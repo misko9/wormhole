@@ -5,7 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	pfmtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
+	pfmtypes "github.com/wormhole-foundation/wormchain/x/packet-forward-middleware/router/types"
 	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"

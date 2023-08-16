@@ -111,9 +111,15 @@ func TestWormchain(t *testing.T) {
 	// If true, upgrade all nodes at the same time
 	upgradeAll := false
 
+	// Cancel an upgrade after scheduling one
+	cancelUpgrade := false
 
+
+	//preUpgradeHeight, err := wormchain.Height(ctx)
+	//require.NoError(t, err)
 	if !upgradeOneAtATime && upgradeAll {
 		haltHeight, err := wormchain.Height(ctx)
+		require.NoError(t, err)
 		blocksAfterUpgrade := uint64(10)
 		fmt.Println("Halt height: ", haltHeight)
 
@@ -144,13 +150,14 @@ func TestWormchain(t *testing.T) {
 		fmt.Println("***** PASS **********")
 	}
 	if upgradeOneAtATime && !upgradeAll {
-		blocksAfterUpgrade := uint64(10)
+		blocksAfterUpgrade := uint64(5)
 
 		// upgrade version on all nodes
-		wormchain.UpgradeVersion(ctx, client, "local22")
+		wormchain.UpgradeVersion(ctx, client, "local181")
 		
 		for i := 0; i < numVals; i++ {
 			haltHeight, err := wormchain.Height(ctx)
+			require.NoError(t, err)
 			fmt.Println("Halt height:", i, " : ", haltHeight)
 
 			// bring down nodes to prepare for upgrade
@@ -174,31 +181,82 @@ func TestWormchain(t *testing.T) {
 			timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*45)
 			defer timeoutCtxCancel()
 
-			_ = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
-			//require.NoError(t, err, "chain did not produce blocks after upgrade1")
+			err = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
+			require.NoError(t, err, "chain did not produce blocks after upgrade1")
 
 			height, err := wormchain.Height(ctx)
 			require.NoError(t, err, "error fetching height after upgrade")
 			fmt.Println("Checked height: ", height)
 
-			//require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
+			require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
 		}
-		height, err := wormchain.Height(ctx)
-		require.NoError(t, err, "error fetching height after upgrade")
-		fmt.Println("Checked height: ", height)
+
+		fmt.Println("***** PASS 1 upgrade **********")
+
+		//err = testutil.WaitForBlocks(ctx, 30, wormchain)
+		//require.NoError(t, err)
+		// --------------------------------------------------------------------------------------
+		// upgrade version on all nodes
+		blocksAfterUpgrade = uint64(10)
 		
-		timeoutCtx2, timeoutCtxCancel2 := context.WithTimeout(ctx, time.Second*45)
-		defer timeoutCtxCancel2()
+		height, err := wormchain.Height(ctx)
+		require.NoError(t, err, "error fetching height before upgrade")
+		fmt.Println("Height at sending schedule upgrade: ", height)
+		
+		haltHeight := height + blocksAfterUpgrade
+		fmt.Println("Height for scheduled upgrade: ", haltHeight)
 
-		err = testutil.WaitForBlocks(timeoutCtx2, int(blocksAfterUpgrade), wormchain)
-		require.NoError(t, err, "chain did not produce blocks after upgrade2")
+		helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v2.22.0", haltHeight, guardians)
+		
+		timeoutCtx3, timeoutCtxCancel3 := context.WithTimeout(ctx, time.Second*45)
+		defer timeoutCtxCancel3()
 
-		height2, err := wormchain.Height(ctx)
-		require.NoError(t, err, "error fetching height2 after upgrade")
-		fmt.Println("Checked height2: ", height2)
+		if cancelUpgrade {
+			testutil.WaitForBlocks(ctx, 2, wormchain)
 
-		require.GreaterOrEqual(t, height2, height+blocksAfterUpgrade, "height2 did not increment enough after upgrade")
-		fmt.Println("***** PASS **********")
+			helpers.CancelUpgrade(t, ctx, wormchain, "faucet", guardians)
+		}
+		
+		// this should timeout due to chain halt at upgrade height.
+		_ = testutil.WaitForBlocks(timeoutCtx3, int(haltHeight-height)+1, wormchain)
+		
+		height, err = wormchain.Height(ctx)
+		require.NoError(t, err, "error fetching height after chain should have halted")
+		fmt.Println("Height when chains should have halted: ", height)
+		
+		// make sure that chain is halted
+		if cancelUpgrade {
+			require.NotEqual(t, haltHeight, height, "height is equal to halt height, it shouldn't be")
+			fmt.Println("***** Cancel upgrade test passed ******")
+			t.SkipNow()
+		}
+		require.Equal(t, haltHeight, height, "height is not equal to halt height")
+		
+		// bring down nodes to prepare for upgrade
+		err = wormchain.StopAllNodes(ctx)
+		require.NoError(t, err, "error stopping node(s)")
+		
+		// upgrade version on all nodes
+		wormchain.UpgradeVersion(ctx, client, "local22")
+		
+		// start all nodes back up.
+		// validators reach consensus on first block after upgrade height
+		// and chain block production resumes.
+		err = wormchain.StartAllNodes(ctx)
+		require.NoError(t, err, "error starting upgraded node(s)")
+		
+		timeoutCtx4, timeoutCtxCancel4 := context.WithTimeout(ctx, time.Second*45)
+		defer timeoutCtxCancel4()
+		
+		err = testutil.WaitForBlocks(timeoutCtx4, int(blocksAfterUpgrade), wormchain)
+		require.NoError(t, err, "chain did not produce blocks after upgrade")
+		
+		height, err = wormchain.Height(ctx)
+		require.NoError(t, err, "error fetching height after upgrade")
+		fmt.Println("Height after upgrade >10 blocks after scheduled halt: ", height)
+		
+		require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
+		fmt.Println("***** PASS 2nd upgrade **********")
 	}
 
 	// *************************************************************
@@ -215,8 +273,6 @@ func TestWormchain(t *testing.T) {
 
 	err = testutil.WaitForBlocks(ctx, 2, wormchain)
 	require.NoError(t, err, "error waiting for 2 blocks")
-
-	helpers.SetModuleParams(t, ctx, wormchain, "faucet", guardians)
 
 	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)

@@ -49,7 +49,32 @@ func SetMiddlewareContract(
 	require.NoError(t, err)
 }
 
-func SetModuleParams(
+func ScheduleUpgrade(
+	t *testing.T,
+	ctx context.Context,
+	chain *cosmos.CosmosChain,
+	keyName string,
+	name string,
+	height uint64,
+	guardians *guardians.ValSet,
+) {
+	node := chain.GetFullNode()
+
+	payload := vaa.BodyGatewayScheduleUpgrade{
+		Name: name,
+		Height: height,
+	}
+	payloadBz := payload.Serialize()
+	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payloadBz)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+
+	_, err = node.ExecTx(ctx, keyName, "wormhole", "execute-gateway-governance-vaa", vHex, "--gas", "auto")
+	require.NoError(t, err)
+}
+
+func CancelUpgrade(
 	t *testing.T,
 	ctx context.Context,
 	chain *cosmos.CosmosChain,
@@ -58,8 +83,7 @@ func SetModuleParams(
 ) {
 	node := chain.GetFullNode()
 
-	
-	payloadBz := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionSetTokenfactoryPfmDefaultParams, vaa.ChainIDWormchain)
+	payloadBz := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
 	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)

@@ -61,9 +61,9 @@ impl Api for CustomApi {
             return Ok(Addr::unchecked(self.user_addr.clone()));
         }
 
-        return Err(StdError::GenericErr {
+        Err(StdError::GenericErr {
             msg: "case not found".to_string(),
-        });
+        })
     }
 
     fn addr_canonicalize(&self, input: &str) -> StdResult<CanonicalAddr> {
@@ -75,9 +75,9 @@ impl Api for CustomApi {
             return Ok(CanonicalAddr(self.user_addr_bin.clone()));
         }
 
-        return Err(StdError::GenericErr {
+        Err(StdError::GenericErr {
             msg: "case not found".to_string(),
-        });
+        })
     }
 
     fn addr_humanize(&self, canonical: &CanonicalAddr) -> StdResult<Addr> {
@@ -89,9 +89,9 @@ impl Api for CustomApi {
             return Ok(Addr::unchecked(self.user_addr.clone()));
         }
 
-        return Err(StdError::GenericErr {
+        Err(StdError::GenericErr {
             msg: "case not found".to_string(),
-        });
+        })
     }
 
     fn secp256k1_verify(
@@ -143,7 +143,7 @@ impl Api for CustomApi {
     }
 
     fn debug(&self, message: &str) {
-        println!("{}", message);
+        println!("{message}");
     }
 }
 
@@ -178,7 +178,7 @@ pub fn execute_custom_mock_deps() -> OwnedDeps<MockStorage, CustomApi, MockQueri
 pub fn mock_env_custom_contract(contract_addr: impl Into<String>) -> Env {
     let mut env = mock_env();
     env.contract.address = Addr::unchecked(contract_addr);
-    return env;
+    env
 }
 
 
@@ -266,7 +266,7 @@ impl<C: CustomQuery + DeserializeOwned> Querier for MockQuerier<C> {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
-                    error: format!("Parsing query request: {}", e),
+                    error: format!("Parsing query request: {e}"),
                     request: bin_request.into(),
                 })
             }

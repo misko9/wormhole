@@ -21,7 +21,7 @@ fn query_ibc_channel_happy_path() {
     CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
 
     let expected_response = ChannelResponse{
-        channel: channel
+        channel
     };
     
     let response = query_ibc_channel(deps.as_ref(), 0).unwrap();

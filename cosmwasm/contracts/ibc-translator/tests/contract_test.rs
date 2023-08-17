@@ -14,7 +14,9 @@ use cw_token_bridge::msg::TransferInfoResponse;
 use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 mod test_setup;
-use test_setup::*;
+use test_setup::{
+    WORMHOLE_USER_ADDR, execute_custom_mock_deps, mock_env_custom_contract, WORMHOLE_CONTRACT_ADDR,
+};
 
 // TESTS
 // 1. instantiate
@@ -40,7 +42,7 @@ fn instantiate_happy_path() {
 
     let mut deps = mock_dependencies();
     let env = mock_env();
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let msg = InstantiateMsg {
         token_bridge_contract: tokenbridge_addr.clone(),
     };
@@ -109,9 +111,9 @@ fn execute_complete_transfer_and_convert() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
-    let msg = ExecuteMsg::CompleteTransferAndConvert { vaa: vaa };
+    let msg = ExecuteMsg::CompleteTransferAndConvert { vaa };
 
     let response = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -168,14 +170,14 @@ fn execute_gateway_convert_and_transfer() {
         .unwrap();
     let coin = coin(1, tokenfactory_denom.clone());
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin.clone()]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[coin.clone()]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let fee = Uint128::zero();
     let nonce = 0u32;
 
-    let msg = ExecuteMsg::GatewayConvertAndTransfer { recipient: recipient, chain: recipient_chain, fee: fee, nonce: nonce };
+    let msg = ExecuteMsg::GatewayConvertAndTransfer { recipient, chain: recipient_chain, fee, nonce };
 
     let response = execute(
         deps.as_mut(),
@@ -250,13 +252,13 @@ fn execute_gateway_convert_and_transfer_with_payload() {
         .unwrap();
     let coin = coin(1, tokenfactory_denom.clone());
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin.clone()]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[coin.clone()]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let nonce = 0u32;
 
-    let msg = ExecuteMsg::GatewayConvertAndTransferWithPayload { contract: recipient, chain: recipient_chain, payload: Binary::default(), nonce: nonce };
+    let msg = ExecuteMsg::GatewayConvertAndTransferWithPayload { contract: recipient, chain: recipient_chain, payload: Binary::default(), nonce };
 
     let response = execute(
         deps.as_mut(),
@@ -315,11 +317,11 @@ fn execute_gateway_convert_and_transfer_with_payload() {
 #[test]
 fn execute_submit_update_chain_to_channel_map() {
     let mut deps = execute_custom_mock_deps();
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let env = mock_env();
     let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAs=").unwrap();
 
-    let msg = ExecuteMsg::SubmitUpdateChainToChannelMap { vaa: vaa };
+    let msg = ExecuteMsg::SubmitUpdateChainToChannelMap { vaa };
     let response = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // response should have 0 message
@@ -384,7 +386,7 @@ fn query_query_ibc_channel_happy_path() {
     CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
 
     let expected_response = to_binary(&ChannelResponse{
-        channel: channel
+        channel
     }).unwrap();
     
     let response = query(deps.as_ref(), env, msg).unwrap();

@@ -18,7 +18,9 @@ use cw_token_bridge::msg::TransferInfoResponse;
 use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 mod test_setup;
-use test_setup::*;
+use test_setup::{
+    execute_custom_mock_deps, mock_env_custom_contract, WORMHOLE_CONTRACT_ADDR, WORMHOLE_USER_ADDR,
+};
 
 // Tests
 // 1. complete_transfer_and_convert
@@ -90,7 +92,7 @@ fn complete_transfer_and_convert_happy_path() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
     let response = complete_transfer_and_convert(deps.as_mut(), env, info, vaa).unwrap();
@@ -132,7 +134,7 @@ fn complete_transfer_and_convert_happy_path() {
 #[test]
 fn complete_transfer_and_convert_no_token_bridge_state() {
     let mut deps = execute_custom_mock_deps();
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let env = mock_env();
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
@@ -162,7 +164,7 @@ fn complete_transfer_and_convert_failure_transferinfo_query() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let env = mock_env();
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
@@ -201,7 +203,7 @@ fn complete_transfer_and_convert_failure_humanize_recipient() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
     let err = complete_transfer_and_convert(deps.as_mut(), env, info, vaa).unwrap_err();
@@ -239,7 +241,7 @@ fn complete_transfer_and_convert_nomatch_recipient_contract() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let vaa = Binary::from_base64("AAAAAA").unwrap();
 
     let err = complete_transfer_and_convert(deps.as_mut(), env, info, vaa).unwrap_err();
@@ -267,7 +269,7 @@ fn convert_and_transfer_happy_path() {
         .unwrap();
     let coin = coin(1, tokenfactory_denom.clone());
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin.clone()]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[coin.clone()]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -335,7 +337,7 @@ fn convert_and_transfer_happy_path() {
 #[test]
 fn convert_and_transfer_no_token_bridge_state() {
     let mut deps = execute_custom_mock_deps();
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -369,7 +371,7 @@ fn convert_and_transfer_no_funds() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -400,7 +402,7 @@ fn convert_and_transfer_too_many_funds() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin(1, "denomA"), coin(1, "denomB")]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[coin(1, "denomA"), coin(1, "denomB")]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -431,7 +433,7 @@ fn convert_and_transfer_parse_method_failure() {
         .save(deps.as_mut().storage, &token_bridge_addr)
         .unwrap();
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &vec![coin(1, "denomA")]);
+    let info = mock_info(WORMHOLE_USER_ADDR, &[coin(1, "denomA")]);
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -514,7 +516,7 @@ fn parse_bank_token_factory_contract_failure_non_contract_created() {
 fn parse_bank_token_factory_contract_failure_base58_decode_failure() {
     let mut deps = execute_custom_mock_deps();
     let env = mock_env();
-    let coin = Coin::new(100, format!("factory/{}/denom0", MOCK_CONTRACT_ADDR));
+    let coin = Coin::new(100, format!("factory/{MOCK_CONTRACT_ADDR}/denom0"));
 
     let method_err = parse_bank_token_factory_contract(deps.as_mut(), env, coin).unwrap_err();
     assert_eq!(

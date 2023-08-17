@@ -5,7 +5,7 @@ use ibc_translator::{
     state::{CURRENT_TRANSFER, CW_DENOMS, CHAIN_TO_CHANNEL_MAP},
 };
 use cosmwasm_std::{
-    to_binary, to_vec, Binary, ContractResult, Reply, Response, CosmosMsg::Stargate, SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
+    to_binary, to_vec, Binary, ContractResult, Reply, Response, CosmosMsg::Stargate, SubMsgResponse, SystemError, SystemResult, Uint128, WasmQuery,
     testing::{
         mock_dependencies, mock_env,
     },
@@ -17,9 +17,9 @@ use cw_token_bridge::msg::{AssetInfo, CompleteTransferResponse, TransferInfoResp
 use prost::Message;
 
 mod test_setup;
-use test_setup::*;
-//use common::default_custom_mock_deps;
-
+use test_setup::{
+    default_custom_mock_deps, WORMHOLE_USER_ADDR, WORMHOLE_CONTRACT_ADDR
+};
 
 #[derive(Clone, PartialEq, Message)]
 struct MsgExecuteContractResponse {
@@ -415,8 +415,8 @@ fn convert_cw20_to_bank_and_send_happy_path() {
     let response = convert_cw20_to_bank_and_send(
         deps.as_mut(),
         env,
-        recipient.clone(),
-        amount.clone(),
+        recipient,
+        amount,
         contract_addr,
         chain_id.into(),
         None,
@@ -428,7 +428,7 @@ fn convert_cw20_to_bank_and_send_happy_path() {
 
     let mut expected_response: Response<TokenFactoryMsg> = Response::new();
     expected_response = expected_response.add_message(TokenMsg::MintTokens {
-        denom: tokenfactory_denom.clone(),
+        denom: tokenfactory_denom,
         amount,
         mint_to_address: "cosmos2contract".to_string(),
     });
@@ -518,8 +518,8 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
     let response = convert_cw20_to_bank_and_send(
         deps.as_mut(),
         env,
-        recipient.clone(),
-        amount.clone(),
+        recipient,
+        amount,
         contract_addr,
         chain_id.into(),
         None,
@@ -532,11 +532,11 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
 
     let mut expected_response: Response<TokenFactoryMsg> = Response::new();
     expected_response = expected_response.add_message(TokenMsg::CreateDenom {
-        subdenom: subdenom,
+        subdenom,
         metadata: Some(tf_metadata),
     });
     expected_response = expected_response.add_message(TokenMsg::MintTokens {
-        denom: tokenfactory_denom.clone(),
+        denom: tokenfactory_denom,
         amount,
         mint_to_address: "cosmos2contract".to_string(),
     });
@@ -614,8 +614,8 @@ fn convert_cw20_to_bank_and_send_chain_id_no_channel() {
     let method_err = convert_cw20_to_bank_and_send(
         deps.as_mut(),
         env,
-        recipient.clone(),
-        amount.clone(),
+        recipient,
+        amount,
         contract_addr,
         chain_id.into(),
         None,
@@ -655,8 +655,8 @@ fn convert_cw20_to_bank_and_send_bad_payload() {
     let method_err = convert_cw20_to_bank_and_send(
         deps.as_mut(),
         env,
-        recipient.clone(),
-        amount.clone(),
+        recipient,
+        amount,
         contract_addr,
         chain_id.into(),
         Some(Binary::from_base64("2VpMWV6czVtZG13OHd6dmNzOXZ4OXk3ZGt0cWdlM3l6bjR3MGw5bjQ0").unwrap()),

@@ -1,25 +1,23 @@
+use cosmwasm_std::{
+    testing::{mock_dependencies, mock_env},
+    to_binary, to_vec, Binary, ContractResult,
+    CosmosMsg::Stargate,
+    Reply, Response, SubMsgResponse, SystemError, SystemResult, Uint128, WasmQuery,
+};
+use cw20::TokenInfoResponse;
+use cw_token_bridge::msg::{AssetInfo, CompleteTransferResponse, TransferInfoResponse};
 use ibc_translator::{
     reply::{
         contract_addr_to_base58, convert_cw20_to_bank_and_send, handle_complete_transfer_reply,
     },
-    state::{CURRENT_TRANSFER, CW_DENOMS, CHAIN_TO_CHANNEL_MAP},
+    state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS},
 };
-use cosmwasm_std::{
-    to_binary, to_vec, Binary, ContractResult, Reply, Response, CosmosMsg::Stargate, SubMsgResponse, SystemError, SystemResult, Uint128, WasmQuery,
-    testing::{
-        mock_dependencies, mock_env,
-    },
-};
-use wormhole_bindings::tokenfactory::{DenomUnit, TokenFactoryMsg, TokenMsg, Metadata};
-use wormhole_sdk::Chain;
-use cw20::TokenInfoResponse;
-use cw_token_bridge::msg::{AssetInfo, CompleteTransferResponse, TransferInfoResponse};
 use prost::Message;
+use wormhole_bindings::tokenfactory::{DenomUnit, Metadata, TokenFactoryMsg, TokenMsg};
+use wormhole_sdk::Chain;
 
 mod test_setup;
-use test_setup::{
-    default_custom_mock_deps, WORMHOLE_USER_ADDR, WORMHOLE_CONTRACT_ADDR
-};
+use test_setup::{default_custom_mock_deps, WORMHOLE_CONTRACT_ADDR, WORMHOLE_USER_ADDR};
 
 #[derive(Clone, PartialEq, Message)]
 struct MsgExecuteContractResponse {
@@ -50,7 +48,6 @@ struct MsgExecuteContractResponse {
 //    1. happy path
 //    2. bad contract address
 
-
 // TESTS: handle_complete_transfer_reply
 // 1. Happy path: GatewayTransfer
 #[test]
@@ -65,20 +62,19 @@ fn handle_complete_transfer_reply_happy_path() {
         })
     };
 
-    let contract_addr = "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string();
+    let contract_addr =
+        "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string();
     let tokenfactory_denom =
         "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
     CW_DENOMS
-        .save(
-            deps.as_mut().storage,
-            contract_addr,
-            &tokenfactory_denom,
-        )
+        .save(deps.as_mut().storage, contract_addr, &tokenfactory_denom)
         .unwrap();
 
     let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
-    
+    CHAIN_TO_CHANNEL_MAP
+        .save(deps.as_mut().storage, 0, &channel)
+        .unwrap();
+
     let transfer_payload = TransferInfoResponse {
         amount: 0u32.into(),
         token_address: [0; 32],
@@ -111,20 +107,19 @@ fn handle_complete_transfer_reply_happy_path_with_payload() {
         })
     };
 
-    let contract_addr = "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string();
+    let contract_addr =
+        "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string();
     let tokenfactory_denom =
         "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
     CW_DENOMS
-        .save(
-            deps.as_mut().storage,
-            contract_addr,
-            &tokenfactory_denom,
-        )
+        .save(deps.as_mut().storage, contract_addr, &tokenfactory_denom)
         .unwrap();
 
     let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
-    
+    CHAIN_TO_CHANNEL_MAP
+        .save(deps.as_mut().storage, 0, &channel)
+        .unwrap();
+
     let transfer_payload = TransferInfoResponse {
         amount: 0u32.into(),
         token_address: [0; 32],
@@ -350,7 +345,6 @@ fn handle_complete_transfer_reply_invalid_recipient() {
     );
 }
 
-
 // 11. Failure: could not convert the contract (GatewayTransferWithPayload) base64 encoded bytes to a utf8 string
 #[test]
 fn handle_complete_transfer_reply_invalid_contract() {
@@ -363,7 +357,7 @@ fn handle_complete_transfer_reply_invalid_contract() {
             data: Some(Binary::from_base64("Cv0BeyJjb250cmFjdCI6Indvcm1ob2xlMXl3NHd2MnpxZzl4a242N3p2cTNhenllMHQ4aDB4OWtneWczZDUzanltMjRneHQ0OXZkeXM2czhoN2EiLCJkZW5vbSI6bnVsbCwicmVjaXBpZW50Ijoic2VpMWRrZHdkdmtueDBxYXY1Y3A1a3c2OG1rbjNyOTltM3N2a3lqZnZrenR3aDk3ZHYybG0wa3NqNnhyYWsiLCJhbW91bnQiOiIxMDAwIiwicmVsYXllciI6InNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdiIsImZlZSI6IjAifQ==").unwrap())
         })
     };
-  
+
     let bad_transfer_payload = TransferInfoResponse {
         amount: 0u32.into(),
         token_address: [0; 32],
@@ -410,7 +404,9 @@ fn convert_cw20_to_bank_and_send_happy_path() {
 
     let chain_id = Chain::Ethereum;
     let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
+    CHAIN_TO_CHANNEL_MAP
+        .save(deps.as_mut().storage, chain_id.into(), &channel)
+        .unwrap();
 
     let response = convert_cw20_to_bank_and_send(
         deps.as_mut(),
@@ -436,18 +432,12 @@ fn convert_cw20_to_bank_and_send_happy_path() {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
         value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2i6MjOsZzqFQ==").unwrap(),
     });
-    
+
     // 1. TokenMsg::MintTokens
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
+    assert_eq!(response.messages[0].msg, expected_response.messages[0].msg,);
 
     // 2. Stargate ibc transfer
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
+    assert_eq!(response.messages[1].msg, expected_response.messages[1].msg,);
 }
 
 // 2. Happy path + CreateDenom on TokenFactory
@@ -465,7 +455,9 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
 
     let chain_id = Chain::Ethereum;
     let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
+    CHAIN_TO_CHANNEL_MAP
+        .save(deps.as_mut().storage, chain_id.into(), &channel)
+        .unwrap();
 
     let token_info_response = TokenInfoResponse {
         name: "TestCoin".to_string(),
@@ -529,7 +521,6 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
     // response should have 3 messages:
     assert_eq!(response.messages.len(), 3);
 
-
     let mut expected_response: Response<TokenFactoryMsg> = Response::new();
     expected_response = expected_response.add_message(TokenMsg::CreateDenom {
         subdenom,
@@ -544,24 +535,15 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
         value: Binary::from_base64("Cgh0cmFuc2ZlchIJY2hhbm5lbC0wGkkKRGZhY3RvcnkvY29zbW9zMmNvbnRyYWN0LzNRRVF5aTdpeUpId1E0d2ZVTUxGUEI0a1J6Y3pNQVhDaXRXaDdoNlRFVERhEgExIg9jb3Ntb3MyY29udHJhY3QqL3dvcm1ob2xlMXZoa20ycXY3ODRydWx4OHlscnUwenB2eXZ3M20zY3k5OWU2d3kwOL2i6MjOsZzqFQ==").unwrap(),
     });
-    
+
     // 1. TokenMsg::CreateDenom
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
+    assert_eq!(response.messages[0].msg, expected_response.messages[0].msg,);
 
     // 2. TokenMsg::MintTokens
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
+    assert_eq!(response.messages[1].msg, expected_response.messages[1].msg,);
 
     // 3. Stargate ibc transfer
-    assert_eq!(
-        response.messages[2].msg,
-        expected_response.messages[2].msg,
-    );
+    assert_eq!(response.messages[2].msg, expected_response.messages[2].msg,);
 }
 
 // 3. Failure: couldn't validate contract address
@@ -574,16 +556,16 @@ fn convert_cw20_to_bank_failure_invalid_contract() {
     let contract_addr = "badContractAddr".to_string();
     let chain_id = Chain::Ethereum;
 
-    let method_err =
-        convert_cw20_to_bank_and_send(
-            deps.as_mut(),
-            env,
-            recipient,
-            amount,
-            contract_addr,
-            chain_id.into(),
-            None,
-        ).unwrap_err();
+    let method_err = convert_cw20_to_bank_and_send(
+        deps.as_mut(),
+        env,
+        recipient,
+        amount,
+        contract_addr,
+        chain_id.into(),
+        None,
+    )
+    .unwrap_err();
     assert_eq!(
         method_err.to_string(),
         "invalid contract address badContractAddr"
@@ -621,12 +603,11 @@ fn convert_cw20_to_bank_and_send_chain_id_no_channel() {
         None,
     )
     .unwrap_err();
-    
+
     assert_eq!(
         method_err.to_string(),
         "chain id does not have an allowed channel"
     );
-
 }
 
 // 5. Failure: bad payload
@@ -650,7 +631,9 @@ fn convert_cw20_to_bank_and_send_bad_payload() {
 
     let chain_id = Chain::Ethereum;
     let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
+    CHAIN_TO_CHANNEL_MAP
+        .save(deps.as_mut().storage, chain_id.into(), &channel)
+        .unwrap();
 
     let method_err = convert_cw20_to_bank_and_send(
         deps.as_mut(),
@@ -659,7 +642,9 @@ fn convert_cw20_to_bank_and_send_bad_payload() {
         amount,
         contract_addr,
         chain_id.into(),
-        Some(Binary::from_base64("2VpMWV6czVtZG13OHd6dmNzOXZ4OXk3ZGt0cWdlM3l6bjR3MGw5bjQ0").unwrap()),
+        Some(
+            Binary::from_base64("2VpMWV6czVtZG13OHd6dmNzOXZ4OXk3ZGt0cWdlM3l6bjR3MGw5bjQ0").unwrap(),
+        ),
     )
     .unwrap_err();
 

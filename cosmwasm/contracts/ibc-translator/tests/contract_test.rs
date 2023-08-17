@@ -1,13 +1,13 @@
-use ibc_translator::{
-    state::{TOKEN_BRIDGE_CONTRACT, CURRENT_TRANSFER, CW_DENOMS, CHAIN_TO_CHANNEL_MAP},
-    msg::{COMPLETE_TRANSFER_REPLY_ID, InstantiateMsg, ExecuteMsg, ChannelResponse, QueryMsg},
-    contract::{execute, instantiate, migrate, reply, query},
-};
 use cosmwasm_std::{
-    coin, to_binary, Binary, ContractResult, CosmosMsg, Empty, Event, Reply, ReplyOn, Response, SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
-    testing::{
-        mock_dependencies, mock_env, mock_info,
-    },
+    coin,
+    testing::{mock_dependencies, mock_env, mock_info},
+    to_binary, Binary, ContractResult, CosmosMsg, Empty, Event, Reply, ReplyOn, Response,
+    SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
+};
+use ibc_translator::{
+    contract::{execute, instantiate, migrate, query, reply},
+    msg::{ChannelResponse, ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID},
+    state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT},
 };
 
 use cw_token_bridge::msg::TransferInfoResponse;
@@ -15,7 +15,7 @@ use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 mod test_setup;
 use test_setup::{
-    WORMHOLE_USER_ADDR, execute_custom_mock_deps, mock_env_custom_contract, WORMHOLE_CONTRACT_ADDR,
+    execute_custom_mock_deps, mock_env_custom_contract, WORMHOLE_CONTRACT_ADDR, WORMHOLE_USER_ADDR,
 };
 
 // TESTS
@@ -67,7 +67,7 @@ fn instantiate_happy_path() {
 fn migrate_happy_path() {
     let mut deps = mock_dependencies();
     let env = mock_env();
-    let msg = Empty{};
+    let msg = Empty {};
 
     let expected_response = Response::<Empty>::default();
 
@@ -177,27 +177,24 @@ fn execute_gateway_convert_and_transfer() {
     let fee = Uint128::zero();
     let nonce = 0u32;
 
-    let msg = ExecuteMsg::GatewayConvertAndTransfer { recipient, chain: recipient_chain, fee, nonce };
+    let msg = ExecuteMsg::GatewayConvertAndTransfer {
+        recipient,
+        chain: recipient_chain,
+        fee,
+        nonce,
+    };
 
-    let response = execute(
-        deps.as_mut(),
-        env,
-        info,
-        msg,
-    )
-    .unwrap();
+    let response = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // response should have 3 messages
     assert_eq!(response.messages.len(), 3);
 
     let mut expected_response: Response<TokenFactoryMsg> = Response::new();
-    expected_response = expected_response.add_message(
-        TokenMsg::BurnTokens { 
-            denom: tokenfactory_denom,
-            amount: coin.amount.u128(),
-            burn_from_address: "".to_string(),
-         }
-    );
+    expected_response = expected_response.add_message(TokenMsg::BurnTokens {
+        denom: tokenfactory_denom,
+        amount: coin.amount.u128(),
+        burn_from_address: "".to_string(),
+    });
     expected_response = expected_response.add_message(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: WORMHOLE_CONTRACT_ADDR.to_string(),
@@ -214,22 +211,13 @@ fn execute_gateway_convert_and_transfer() {
     );
 
     // 1. TokenMsg::BurnTokens
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
+    assert_eq!(response.messages[0].msg, expected_response.messages[0].msg,);
 
     // 2. WasmMsg::Execute (increase allowance)
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
+    assert_eq!(response.messages[1].msg, expected_response.messages[1].msg,);
 
     // 3. WasmMsg::Execute (initiate transfer)
-    assert_eq!(
-        response.messages[2].msg,
-        expected_response.messages[2].msg,
-    );
+    assert_eq!(response.messages[2].msg, expected_response.messages[2].msg,);
 }
 
 // 3. GatewayConvertAndTransferWithPaylod
@@ -258,27 +246,24 @@ fn execute_gateway_convert_and_transfer_with_payload() {
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let nonce = 0u32;
 
-    let msg = ExecuteMsg::GatewayConvertAndTransferWithPayload { contract: recipient, chain: recipient_chain, payload: Binary::default(), nonce };
+    let msg = ExecuteMsg::GatewayConvertAndTransferWithPayload {
+        contract: recipient,
+        chain: recipient_chain,
+        payload: Binary::default(),
+        nonce,
+    };
 
-    let response = execute(
-        deps.as_mut(),
-        env,
-        info,
-        msg,
-    )
-    .unwrap();
+    let response = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // response should have 3 messages
     assert_eq!(response.messages.len(), 3);
 
     let mut expected_response: Response<TokenFactoryMsg> = Response::new();
-    expected_response = expected_response.add_message(
-        TokenMsg::BurnTokens { 
-            denom: tokenfactory_denom,
-            amount: coin.amount.u128(),
-            burn_from_address: "".to_string(),
-         }
-    );
+    expected_response = expected_response.add_message(TokenMsg::BurnTokens {
+        denom: tokenfactory_denom,
+        amount: coin.amount.u128(),
+        burn_from_address: "".to_string(),
+    });
     expected_response = expected_response.add_message(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: WORMHOLE_CONTRACT_ADDR.to_string(),
@@ -295,22 +280,13 @@ fn execute_gateway_convert_and_transfer_with_payload() {
     );
 
     // 1. TokenMsg::BurnTokens
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
+    assert_eq!(response.messages[0].msg, expected_response.messages[0].msg,);
 
     // 2. WasmMsg::Execute (increase allowance)
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
+    assert_eq!(response.messages[1].msg, expected_response.messages[1].msg,);
 
     // 3. WasmMsg::Execute (initiate transfer)
-    assert_eq!(
-        response.messages[2].msg,
-        expected_response.messages[2].msg,
-    );
+    assert_eq!(response.messages[2].msg, expected_response.messages[2].msg,);
 }
 
 // 4. SubmitUpdateChainToChannelMap
@@ -326,12 +302,14 @@ fn execute_submit_update_chain_to_channel_map() {
 
     // response should have 0 message
     assert_eq!(response.messages.len(), 0);
-    assert_eq!(response, 
+    assert_eq!(
+        response,
         Response::new().add_event(
-                Event::new("UpdateChainToChannelMap")
-                    .add_attribute("chain_id", "Karura".to_string())
-                    .add_attribute("channel_id", "channel-1".to_string()),
-            ));
+            Event::new("UpdateChainToChannelMap")
+                .add_attribute("chain_id", "Karura".to_string())
+                .add_attribute("channel_id", "channel-1".to_string()),
+        )
+    );
 }
 
 // TESTS: reply
@@ -372,7 +350,6 @@ fn reply_no_id_match() {
     assert_eq!(err.to_string(), "unmatched reply id 0");
 }
 
-
 // TEST: query
 // 1. happy path
 #[test]
@@ -380,18 +357,15 @@ fn query_query_ibc_channel_happy_path() {
     let mut deps = mock_dependencies();
     let env = mock_env();
     let chain_id: u16 = 0;
-    let msg = QueryMsg::IbcChannel{ chain_id };
+    let msg = QueryMsg::IbcChannel { chain_id };
 
     let channel = "channel-0".to_string();
-    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
+    CHAIN_TO_CHANNEL_MAP
+        .save(deps.as_mut().storage, 0, &channel)
+        .unwrap();
 
-    let expected_response = to_binary(&ChannelResponse{
-        channel
-    }).unwrap();
-    
+    let expected_response = to_binary(&ChannelResponse { channel }).unwrap();
+
     let response = query(deps.as_ref(), env, msg).unwrap();
-    assert_eq!(
-        expected_response,
-        response
-    );
+    assert_eq!(expected_response, response);
 }

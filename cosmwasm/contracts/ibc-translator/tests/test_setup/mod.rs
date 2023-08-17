@@ -1,15 +1,12 @@
-use std::marker::PhantomData;
 use serde::de::DeserializeOwned;
+use std::marker::PhantomData;
 
 use cosmwasm_std::{
-    testing::{
-        mock_env, BankQuerier, MockStorage, MockQuerierCustomHandlerResult,
-    },
-    Addr, Api, Binary, CanonicalAddr, Coin, ContractResult, CustomQuery,
-    Empty, Env, OwnedDeps, QuerierResult, QueryRequest, RecoverPubkeyError, StdError, StdResult,
-    SystemError, SystemResult, VerificationError, WasmQuery,
-    Querier,
     from_slice,
+    testing::{mock_env, BankQuerier, MockQuerierCustomHandlerResult, MockStorage},
+    Addr, Api, Binary, CanonicalAddr, Coin, ContractResult, CustomQuery, Empty, Env, OwnedDeps,
+    Querier, QuerierResult, QueryRequest, RecoverPubkeyError, StdError, StdResult, SystemError,
+    SystemResult, VerificationError, WasmQuery,
 };
 use wormhole_bindings::WormholeQuery;
 
@@ -181,7 +178,6 @@ pub fn mock_env_custom_contract(contract_addr: impl Into<String>) -> Env {
     env
 }
 
-
 /// MockQuerier holds an immutable table of bank balances
 /// and configurable handlers for Wasm queries and custom queries.
 pub struct MockQuerier<C: DeserializeOwned = Empty> {
@@ -292,7 +288,7 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
             //_ => SystemResult::Err(SystemError::UnsupportedRequest {
             //    kind: "Unknown".to_string(),
             //}),
-            _ => SystemResult::Ok(ContractResult::Ok(Binary::default()))
+            _ => SystemResult::Ok(ContractResult::Ok(Binary::default())),
         }
     }
 }
@@ -338,8 +334,8 @@ impl Default for WasmQuerier {
                 #[cfg(feature = "cosmwasm_1_2")]
                 WasmQuery::CodeInfo { code_id, .. } => {
                     SystemError::NoSuchCode { code_id: *code_id }
-                },
-                _ => SystemError::Unknown {}
+                }
+                _ => SystemError::Unknown {},
             };
             SystemResult::Err(err)
         });

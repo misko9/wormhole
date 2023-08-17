@@ -1,17 +1,16 @@
+use cosmwasm_std::{
+    coin,
+    testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
+    to_binary, Binary, Coin, ContractResult, CosmosMsg, Event, ReplyOn, Response, SystemError,
+    SystemResult, Uint128, WasmMsg, WasmQuery,
+};
 use ibc_translator::{
     execute::{
-        complete_transfer_and_convert, convert_and_transfer, TransferType, parse_bank_token_factory_contract, 
-        contract_addr_from_base58, submit_update_chain_to_channel_map,
+        complete_transfer_and_convert, contract_addr_from_base58, convert_and_transfer,
+        parse_bank_token_factory_contract, submit_update_chain_to_channel_map, TransferType,
     },
-    state::{TOKEN_BRIDGE_CONTRACT, CURRENT_TRANSFER, CW_DENOMS},
     msg::COMPLETE_TRANSFER_REPLY_ID,
-};
-use cosmwasm_std::{
-    coin, to_binary, Binary, Coin, ContractResult, CosmosMsg, Event, ReplyOn, Response, 
-    SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
-    testing::{
-        mock_env, mock_info, MOCK_CONTRACT_ADDR,
-    },
+    state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT},
 };
 
 use cw_token_bridge::msg::TransferInfoResponse;
@@ -44,8 +43,8 @@ use test_setup::{
 //    6. failure no storage
 //    7. failure storage mismatch
 // 4. contract_addr_from_base58
-//    1. happy path 
-//    2. failure decode base58 
+//    1. happy path
+//    2. failure decode base58
 // 5. submit_update_chain_to_channel_map
 //    1. happy path
 //    2. failed to parse vaa
@@ -274,7 +273,7 @@ fn convert_and_transfer_happy_path() {
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let fee = Uint128::zero();
-    let transfer_type = TransferType::Simple{ fee };
+    let transfer_type = TransferType::Simple { fee };
     let nonce = 0u32;
 
     let response = convert_and_transfer(
@@ -292,13 +291,11 @@ fn convert_and_transfer_happy_path() {
     assert_eq!(response.messages.len(), 3);
 
     let mut expected_response: Response<TokenFactoryMsg> = Response::new();
-    expected_response = expected_response.add_message(
-        TokenMsg::BurnTokens { 
-            denom: tokenfactory_denom,
-            amount: coin.amount.u128(),
-            burn_from_address: "".to_string(),
-         }
-    );
+    expected_response = expected_response.add_message(TokenMsg::BurnTokens {
+        denom: tokenfactory_denom,
+        amount: coin.amount.u128(),
+        burn_from_address: "".to_string(),
+    });
     expected_response = expected_response.add_message(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: WORMHOLE_CONTRACT_ADDR.to_string(),
@@ -315,22 +312,13 @@ fn convert_and_transfer_happy_path() {
     );
 
     // 1. TokenMsg::BurnTokens
-    assert_eq!(
-        response.messages[0].msg,
-        expected_response.messages[0].msg,
-    );
+    assert_eq!(response.messages[0].msg, expected_response.messages[0].msg,);
 
     // 2. WasmMsg::Execute (increase allowance)
-    assert_eq!(
-        response.messages[1].msg,
-        expected_response.messages[1].msg,
-    );
+    assert_eq!(response.messages[1].msg, expected_response.messages[1].msg,);
 
     // 3. WasmMsg::Execute (initiate transfer)
-    assert_eq!(
-        response.messages[2].msg,
-        expected_response.messages[2].msg,
-    );
+    assert_eq!(response.messages[2].msg, expected_response.messages[2].msg,);
 }
 
 // 2. Failure: no token bridge address in state
@@ -342,7 +330,7 @@ fn convert_and_transfer_no_token_bridge_state() {
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let fee = Uint128::zero();
-    let transfer_type = TransferType::Simple{ fee };
+    let transfer_type = TransferType::Simple { fee };
     let nonce = 0u32;
 
     let err = convert_and_transfer(
@@ -376,7 +364,7 @@ fn convert_and_transfer_no_funds() {
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let fee = Uint128::zero();
-    let transfer_type = TransferType::Simple{ fee };
+    let transfer_type = TransferType::Simple { fee };
     let nonce = 0u32;
 
     let err = convert_and_transfer(
@@ -407,7 +395,7 @@ fn convert_and_transfer_too_many_funds() {
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let fee = Uint128::zero();
-    let transfer_type = TransferType::Simple{ fee };
+    let transfer_type = TransferType::Simple { fee };
     let nonce = 0u32;
 
     let err = convert_and_transfer(
@@ -438,7 +426,7 @@ fn convert_and_transfer_parse_method_failure() {
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
     let fee = Uint128::zero();
-    let transfer_type = TransferType::Simple{ fee };
+    let transfer_type = TransferType::Simple { fee };
     let nonce = 0u32;
 
     let err = convert_and_transfer(
@@ -614,12 +602,14 @@ fn submit_update_chain_to_channel_map_happy_path() {
 
     // response should have 0 message
     assert_eq!(response.messages.len(), 0);
-    assert_eq!(response, 
+    assert_eq!(
+        response,
         Response::new().add_event(
-                Event::new("UpdateChainToChannelMap")
-                    .add_attribute("chain_id", "Karura".to_string())
-                    .add_attribute("channel_id", "channel-1".to_string()),
-            ));
+            Event::new("UpdateChainToChannelMap")
+                .add_attribute("chain_id", "Karura".to_string())
+                .add_attribute("channel_id", "channel-1".to_string()),
+        )
+    );
 }
 
 // 2. failed to parse vaa
@@ -630,10 +620,7 @@ fn submit_update_chain_to_channel_map_failure_parse_vaa() {
 
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "failed to parse VAA header"
-    )
+    assert_eq!(err.to_string(), "failed to parse VAA header")
 }
 
 // 3. unsupported VAA version
@@ -644,10 +631,7 @@ fn submit_update_chain_to_channel_map_failure_unsupported_vaa_version() {
 
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "unsupported VAA version"
-    )
+    assert_eq!(err.to_string(), "unsupported VAA version")
 }
 
 // 4. not a governance vaa
@@ -658,10 +642,7 @@ fn submit_update_chain_to_channel_map_failure_not_gov_vaa() {
 
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "not a governance VAA"
-    )
+    assert_eq!(err.to_string(), "not a governance VAA")
 }
 
 // 5. failed to parse governance packet
@@ -672,10 +653,7 @@ fn submit_update_chain_to_channel_map_failed_parsing_gov_packet() {
 
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "failed to parse governance packet"
-    )
+    assert_eq!(err.to_string(), "failed to parse governance packet")
 }
 
 // 6. governance vaa is for another chain
@@ -686,10 +664,7 @@ fn submit_update_chain_to_channel_map_failure_gov_vaa_for_another_chain() {
 
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "this governance VAA is for another chain"
-    )
+    assert_eq!(err.to_string(), "this governance VAA is for another chain")
 }
 
 // 7. governance vaa already executed
@@ -701,10 +676,7 @@ fn submit_update_chain_to_channel_map_failure_gov_vaa_already_executed() {
     submit_update_chain_to_channel_map(deps.as_mut(), vaa.clone()).unwrap();
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "governance vaa already executed"
-    )
+    assert_eq!(err.to_string(), "governance vaa already executed")
 }
 
 // 8. chain is for wormchain
@@ -728,8 +700,5 @@ fn submit_update_chain_to_channel_map_invalid_channel_id() {
 
     let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
 
-    assert_eq!(
-        err.to_string(),
-        "failed to parse channel-id as utf-8"
-    )
+    assert_eq!(err.to_string(), "failed to parse channel-id as utf-8")
 }

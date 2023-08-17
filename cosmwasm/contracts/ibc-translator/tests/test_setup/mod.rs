@@ -144,6 +144,7 @@ impl Api for CustomApi {
     }
 }
 
+#[allow(dead_code)]
 pub fn default_custom_mock_deps() -> OwnedDeps<MockStorage, CustomApi, MockQuerier, Empty> {
     OwnedDeps {
         storage: MockStorage::default(),
@@ -158,6 +159,7 @@ pub fn default_custom_mock_deps() -> OwnedDeps<MockStorage, CustomApi, MockQueri
     }
 }
 
+#[allow(dead_code)]
 pub fn execute_custom_mock_deps() -> OwnedDeps<MockStorage, CustomApi, MockQuerier, WormholeQuery> {
     OwnedDeps {
         storage: MockStorage::default(),
@@ -172,6 +174,7 @@ pub fn execute_custom_mock_deps() -> OwnedDeps<MockStorage, CustomApi, MockQueri
     }
 }
 
+#[allow(dead_code)]
 pub fn mock_env_custom_contract(contract_addr: impl Into<String>) -> Env {
     let mut env = mock_env();
     env.contract.address = Addr::unchecked(contract_addr);
@@ -211,6 +214,7 @@ impl<C: DeserializeOwned> MockQuerier<C> {
     }
 
     // set a new balance for the given address and return the old balance
+    #[allow(dead_code)]
     pub fn update_balance(
         &mut self,
         addr: impl Into<String>,
@@ -241,6 +245,7 @@ impl<C: DeserializeOwned> MockQuerier<C> {
         self.wasm.update_handler(handler)
     }
 
+    #[allow(dead_code)]
     pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
     where
         CH: Fn(&C) -> MockQuerierCustomHandlerResult,

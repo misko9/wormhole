@@ -1,16 +1,13 @@
-//#[cfg(test)]
-//mod test_setup {
 use std::marker::PhantomData;
 use serde::de::DeserializeOwned;
 
 use cosmwasm_std::{
-    coin,
     testing::{
-        mock_dependencies, mock_env, mock_info, BankQuerier, MockStorage, MOCK_CONTRACT_ADDR, MockQuerierCustomHandlerResult,
+        mock_env, BankQuerier, MockStorage, MockQuerierCustomHandlerResult,
     },
-    to_binary, to_vec, Addr, Api, BankMsg, BankQuery, Binary, CanonicalAddr, Coin, ContractResult, CosmosMsg, CustomQuery,
-    Empty, Env, OwnedDeps, QuerierResult, QueryRequest, RecoverPubkeyError, Reply, ReplyOn, StdError, StdResult, SubMsgResponse,
-    SystemError, SystemResult, VerificationError, WasmMsg, WasmQuery,
+    Addr, Api, Binary, CanonicalAddr, Coin, ContractResult, CustomQuery,
+    Empty, Env, OwnedDeps, QuerierResult, QueryRequest, RecoverPubkeyError, StdError, StdResult,
+    SystemError, SystemResult, VerificationError, WasmQuery,
     Querier,
     from_slice,
 };
@@ -178,14 +175,11 @@ pub fn execute_custom_mock_deps() -> OwnedDeps<MockStorage, CustomApi, MockQueri
     }
 }
 
-
-
 pub fn mock_env_custom_contract(contract_addr: impl Into<String>) -> Env {
     let mut env = mock_env();
     env.contract.address = Addr::unchecked(contract_addr);
     return env;
 }
-//}
 
 
 /// MockQuerier holds an immutable table of bank balances

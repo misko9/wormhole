@@ -7,43 +7,43 @@ use ibc_translator::{
     msg::COMPLETE_TRANSFER_REPLY_ID,
 };
 use cosmwasm_std::{
-    coin, to_binary, Binary, Coin, ContractResult, CosmosMsg, Empty, Event, QueryResponse, ReplyOn, Response, 
+    coin, to_binary, Binary, Coin, ContractResult, CosmosMsg, Event, ReplyOn, Response, 
     SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
     testing::{
         mock_env, mock_info, MOCK_CONTRACT_ADDR,
     },
 };
 
-use cw_token_bridge::msg::{AssetInfo, CompleteTransferResponse, TransferInfoResponse};
-use wormhole_bindings::{tokenfactory::{TokenFactoryMsg, TokenMsg}, WormholeQuery};
+use cw_token_bridge::msg::TransferInfoResponse;
+use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 mod test_setup;
 use test_setup::*;
 
 // Tests
-// 1. complete_transfer_and_convert (done)
-//    1. happy path (done)
-//    2. no token bridge state (done)
-//    3. failure transferinfo query (done)
-//    4. failure humanize recipient (done)
-//    5. no match recipient contract (done)
-// 2. convert_and_transfer (done)
-//    1. happy path (done)
-//    2. no token bridge state (done)
-//    3. no funds (done)
-//    4. too many funds (done)
-//    5. parse method failure (done)
-// 3. parse_bank_token_factory_contract (done)
-//    1. happy path (done)
-//    2. failure denom length (done)
-//    3. failure non factory token (done)
-//    4. failure non contract created (done)
-//    5. failure base58 decode failure (done)
-//    6. failure no storage (done)
-//    7. failure storage mismatch (done)
-// 4. contract_addr_from_base58 (done)
-//    1. happy path (done)
-//    2. failure decode base58 (done)
+// 1. complete_transfer_and_convert
+//    1. happy path
+//    2. no token bridge state
+//    3. failure transferinfo query
+//    4. failure humanize recipient
+//    5. no match recipient contract
+// 2. convert_and_transfer
+//    1. happy path
+//    2. no token bridge state
+//    3. no funds
+//    4. too many funds
+//    5. parse method failure
+// 3. parse_bank_token_factory_contract
+//    1. happy path
+//    2. failure denom length
+//    3. failure non factory token
+//    4. failure non contract created
+//    5. failure base58 decode failure
+//    6. failure no storage
+//    7. failure storage mismatch
+// 4. contract_addr_from_base58
+//    1. happy path 
+//    2. failure decode base58 
 // 5. submit_update_chain_to_channel_map
 //    1. happy path
 //    2. failed to parse vaa
@@ -312,7 +312,7 @@ fn convert_and_transfer_happy_path() {
         })
     );
 
-    // 1. SeiMsg::BurnTokens
+    // 1. TokenMsg::BurnTokens
     assert_eq!(
         response.messages[0].msg,
         expected_response.messages[0].msg,
@@ -610,7 +610,7 @@ fn submit_update_chain_to_channel_map_happy_path() {
 
     let response = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap();
 
-    // response should have 1 message
+    // response should have 0 message
     assert_eq!(response.messages.len(), 0);
     assert_eq!(response, 
         Response::new().add_event(

@@ -2,13 +2,12 @@ use ibc_translator::{
     reply::{
         contract_addr_to_base58, convert_cw20_to_bank_and_send, handle_complete_transfer_reply,
     },
-    state::{TOKEN_BRIDGE_CONTRACT, CURRENT_TRANSFER, CW_DENOMS, CHAIN_TO_CHANNEL_MAP},
-    //test_setup::default_custom_mock_deps,
+    state::{CURRENT_TRANSFER, CW_DENOMS, CHAIN_TO_CHANNEL_MAP},
 };
 use cosmwasm_std::{
-    coin, to_binary, to_vec, Binary, ContractResult, CosmosMsg, Reply, ReplyOn, Response, CosmosMsg::Stargate, SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
+    to_binary, to_vec, Binary, ContractResult, Reply, Response, CosmosMsg::Stargate, SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
     testing::{
-        mock_dependencies, mock_env, mock_info,
+        mock_dependencies, mock_env,
     },
 };
 use wormhole_bindings::tokenfactory::{DenomUnit, TokenFactoryMsg, TokenMsg, Metadata};
@@ -29,27 +28,27 @@ struct MsgExecuteContractResponse {
 }
 
 // Tests
-// 1. handle_complete_transfer_reply (done)
-//    1. happy path, GatewayTransfer (done)
-//    2. happy path, GatewayTransferWithPayload (done)
-//    2. bad msg result (done)
-//    3. invalid response data (done)
-//    4. no repsonse data (done)
-//    5. invalid reponse data type (done)
-//    6. no reponse contract (done)
-//    7. no storage (done)
-//    8. wrong stored payload (done)
-//    9. invalid recipient (done)
-//    10. invalid contract (done)
+// 1. handle_complete_transfer_reply
+//    1. happy path, GatewayTransfer
+//    2. happy path, GatewayTransferWithPayload
+//    2. bad msg result
+//    3. invalid response data
+//    4. no repsonse data
+//    5. invalid reponse data type
+//    6. no reponse contract
+//    7. no storage
+//    8. wrong stored payload
+//    9. invalid recipient
+//    10. invalid contract
 // 2. convert_cw20_to_bank_and_send
-//    1. happy path (done)
-//    2. happy path create denom (done)
-//    3. failure invalid contract (done)
+//    1. happy path
+//    2. happy path create denom
+//    3. failure invalid contract
 //    4. chain id no channel
 //    5. bad payload
-// 3. contract_addr_to_base58 (done)
-//    1. happy path (done)
-//    2. bad contract address (done)
+// 3. contract_addr_to_base58
+//    1. happy path
+//    2. bad contract address
 
 
 // TESTS: handle_complete_transfer_reply

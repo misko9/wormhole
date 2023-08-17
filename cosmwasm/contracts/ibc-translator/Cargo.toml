@@ -35,3 +35,4 @@ wormhole-sdk = { version = "0.1.0", features = ["schemars"] }
 cosmwasm-crypto = { version = "1.2.7" }
 hex = "0.4.3"
 prost = "0.11.0"
+serde = { version = "1.0.103", features = ["derive", "alloc"]}

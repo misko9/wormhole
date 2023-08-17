@@ -29,9 +29,9 @@ struct MsgExecuteContractResponse {
 }
 
 // Tests
-// 1. handle_complete_transfer_reply
+// 1. handle_complete_transfer_reply (done)
 //    1. happy path, GatewayTransfer (done)
-// TODO    1. happy path, GatewayTransferWithPayload
+//    2. happy path, GatewayTransferWithPayload (done)
 //    2. bad msg result (done)
 //    3. invalid response data (done)
 //    4. no repsonse data (done)
@@ -40,22 +40,20 @@ struct MsgExecuteContractResponse {
 //    7. no storage (done)
 //    8. wrong stored payload (done)
 //    9. invalid recipient (done)
-// TODO    10. invalid contract
+//    10. invalid contract (done)
 // 2. convert_cw20_to_bank_and_send
 //    1. happy path (done)
 //    2. happy path create denom (done)
 //    3. failure invalid contract (done)
-// TODO 4. chain id no channel
-// TODO 5. bad payload
+//    4. chain id no channel
+//    5. bad payload
 // 3. contract_addr_to_base58 (done)
 //    1. happy path (done)
 //    2. bad contract address (done)
 
 
-// Test handle_complete_transfer_reply
-
 // TESTS: handle_complete_transfer_reply
-// 1. Happy path: calls convert_cw20_to_bank
+// 1. Happy path: GatewayTransfer
 #[test]
 fn handle_complete_transfer_reply_happy_path() {
     let mut deps = mock_dependencies();
@@ -64,11 +62,11 @@ fn handle_complete_transfer_reply_happy_path() {
         id: 1,
         result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary::from_base64("CvgBeyJjb250cmFjdCI6InNlaTE0MG02eGFnbXcwemVzZWp6aHN2azQ2enByZ3Njcjd0dTk0aDM2cndzdXRjc3hjczRmbWRzOXNldnltIiwiZGVub20iOm51bGwsInJlY2lwaWVudCI6InNlaTFka2R3ZHZrbngwcWF2NWNwNWt3Njhta24zcjk5bTNzdmt5amZ2a3p0d2g5N2R2MmxtMGtzajZ4cmFrIiwiYW1vdW50IjoiMTAwMCIsInJlbGF5ZXIiOiJzZWkxdmhrbTJxdjc4NHJ1bHg4eWxydTB6cHZ5dnczbTNjeTl4M3h5ZnYiLCJmZWUiOiIwIn0=").unwrap())
+            data: Some(Binary::from_base64("Cv0BeyJjb250cmFjdCI6Indvcm1ob2xlMXl3NHd2MnpxZzl4a242N3p2cTNhenllMHQ4aDB4OWtneWczZDUzanltMjRneHQ0OXZkeXM2czhoN2EiLCJkZW5vbSI6bnVsbCwicmVjaXBpZW50Ijoic2VpMWRrZHdkdmtueDBxYXY1Y3A1a3c2OG1rbjNyOTltM3N2a3lqZnZrenR3aDk3ZHYybG0wa3NqNnhyYWsiLCJhbW91bnQiOiIxMDAwIiwicmVsYXllciI6InNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdiIsImZlZSI6IjAifQ==").unwrap())
         })
     };
 
-    let contract_addr = "sei140m6xagmw0zesejzhsvk46zprgscr7tu94h36rwsutcsxcs4fmds9sevym".to_string();
+    let contract_addr = "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string();
     let tokenfactory_denom =
         "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
     CW_DENOMS
@@ -82,7 +80,7 @@ fn handle_complete_transfer_reply_happy_path() {
     let channel = "channel-0".to_string();
     CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
     
-    let bad_transfer_payload = TransferInfoResponse {
+    let transfer_payload = TransferInfoResponse {
         amount: 0u32.into(),
         token_address: [0; 32],
         token_chain: 0,
@@ -92,7 +90,7 @@ fn handle_complete_transfer_reply_happy_path() {
         payload: hex::decode("7B22676174657761795F7472616E73666572223A7B22636861696E223A302C22726563697069656E74223A22633256704D575636637A56745A4731334F486436646D4E7A4F585A344F586B335A4774306357646C4D336C36626A52334D477735626A5130222C22666565223A2230222C226E6F6E6365223A307D7D").unwrap()
     };
     CURRENT_TRANSFER
-        .save(deps.as_mut().storage, &bad_transfer_payload)
+        .save(deps.as_mut().storage, &transfer_payload)
         .unwrap();
 
     // just verifying that we called the convert_cw20_to_bank -- unwrap the result without an error
@@ -101,7 +99,53 @@ fn handle_complete_transfer_reply_happy_path() {
     handle_complete_transfer_reply(deps.as_mut(), env, msg).unwrap();
 }
 
-// 2. Failure: msg result is not okay
+// 2. Happy path: GatewayTransferWithPayload
+#[test]
+fn handle_complete_transfer_reply_happy_path_with_payload() {
+    let mut deps = mock_dependencies();
+    let env = mock_env();
+    let msg = Reply {
+        id: 1,
+        result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
+            events: vec![],
+            data: Some(Binary::from_base64("Cv0BeyJjb250cmFjdCI6Indvcm1ob2xlMXl3NHd2MnpxZzl4a242N3p2cTNhenllMHQ4aDB4OWtneWczZDUzanltMjRneHQ0OXZkeXM2czhoN2EiLCJkZW5vbSI6bnVsbCwicmVjaXBpZW50Ijoic2VpMWRrZHdkdmtueDBxYXY1Y3A1a3c2OG1rbjNyOTltM3N2a3lqZnZrenR3aDk3ZHYybG0wa3NqNnhyYWsiLCJhbW91bnQiOiIxMDAwIiwicmVsYXllciI6InNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdiIsImZlZSI6IjAifQ==").unwrap())
+        })
+    };
+
+    let contract_addr = "wormhole1yw4wv2zqg9xkn67zvq3azye0t8h0x9kgyg3d53jym24gxt49vdys6s8h7a".to_string();
+    let tokenfactory_denom =
+        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
+    CW_DENOMS
+        .save(
+            deps.as_mut().storage,
+            contract_addr,
+            &tokenfactory_denom,
+        )
+        .unwrap();
+
+    let channel = "channel-0".to_string();
+    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, 0, &channel).unwrap();
+    
+    let transfer_payload = TransferInfoResponse {
+        amount: 0u32.into(),
+        token_address: [0; 32],
+        token_chain: 0,
+        recipient: [0; 32],
+        recipient_chain: 0,
+        fee: 0u32.into(),
+        payload: hex::decode("7B22676174657761795F7472616E736665725F776974685F7061796C6F6164223A7B22636861696E223A302C22636F6E7472616374223A22633256704D575636637A56745A4731334F486436646D4E7A4F585A344F586B335A4774306357646C4D336C36626A52334D477735626A5130222C227061796C6F6164223A225647567A64464268655778765957513D222C226E6F6E6365223A307D7D").unwrap()
+    };
+    CURRENT_TRANSFER
+        .save(deps.as_mut().storage, &transfer_payload)
+        .unwrap();
+
+    // just verifying that we called the convert_cw20_to_bank -- unwrap the result without an error
+    // other tests verify the correctness of this method
+    // wormhole core and token bridge tests verify the correctness of the VAA parameters
+    handle_complete_transfer_reply(deps.as_mut(), env, msg).unwrap();
+}
+
+// 3. Failure: msg result is not okay
 #[test]
 fn handle_complete_transfer_reply_bad_msg_result() {
     let mut deps = mock_dependencies();
@@ -118,7 +162,7 @@ fn handle_complete_transfer_reply_bad_msg_result() {
     );
 }
 
-// 3. Failure: could not parse reply response_data
+// 4. Failure: could not parse reply response_data
 #[test]
 fn handle_complete_transfer_reply_invalid_response_data() {
     let mut deps = mock_dependencies();
@@ -138,7 +182,7 @@ fn handle_complete_transfer_reply_invalid_response_data() {
     );
 }
 
-// 4. Failure: no data in the parsed response
+// 5. Failure: no data in the parsed response
 #[test]
 fn handle_complete_transfer_reply_no_response_data() {
     let mut deps = mock_dependencies();
@@ -158,7 +202,7 @@ fn handle_complete_transfer_reply_no_response_data() {
     );
 }
 
-// 5. Failure: could not deserialize response data
+// 6. Failure: could not deserialize response data
 #[test]
 fn handle_complete_transfer_reply_invalid_response_data_type() {
     let mut deps = mock_dependencies();
@@ -187,7 +231,7 @@ fn handle_complete_transfer_reply_invalid_response_data_type() {
     assert_eq!(err.to_string(), "failed to deserialize response data");
 }
 
-// 6. Failure: no contract in the response
+// 7. Failure: no contract in the response
 #[test]
 fn handle_complete_transfer_reply_no_response_contract() {
     let mut deps = mock_dependencies();
@@ -224,7 +268,7 @@ fn handle_complete_transfer_reply_no_response_contract() {
     );
 }
 
-// 7. Failure: no current transfer in storage
+// 8. Failure: no current transfer in storage
 #[test]
 fn handle_complete_transfer_reply_no_storage() {
     let mut deps = mock_dependencies();
@@ -244,7 +288,7 @@ fn handle_complete_transfer_reply_no_storage() {
     );
 }
 
-// 8. Failure: could not deserialize payload3 payload from stored transfer
+// 9. Failure: could not deserialize payload3 payload from stored transfer
 #[test]
 fn handle_complete_transfer_reply_wrong_stored_payload() {
     let mut deps = mock_dependencies();
@@ -274,7 +318,7 @@ fn handle_complete_transfer_reply_wrong_stored_payload() {
     assert_eq!(err.to_string(), "failed to deserialize transfer payload");
 }
 
-// 9. Failure: could not convert the recipient base64 encoded bytes to a utf8 string
+// 10. Failure: could not convert the recipient (GatewayTransfer) base64 encoded bytes to a utf8 string
 #[test]
 fn handle_complete_transfer_reply_invalid_recipient() {
     let mut deps = mock_dependencies();
@@ -307,6 +351,42 @@ fn handle_complete_transfer_reply_invalid_recipient() {
     );
 }
 
+
+// 11. Failure: could not convert the contract (GatewayTransferWithPayload) base64 encoded bytes to a utf8 string
+#[test]
+fn handle_complete_transfer_reply_invalid_contract() {
+    let mut deps = mock_dependencies();
+    let env = mock_env();
+    let msg = Reply {
+        id: 1,
+        result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
+            events: vec![],
+            data: Some(Binary::from_base64("Cv0BeyJjb250cmFjdCI6Indvcm1ob2xlMXl3NHd2MnpxZzl4a242N3p2cTNhenllMHQ4aDB4OWtneWczZDUzanltMjRneHQ0OXZkeXM2czhoN2EiLCJkZW5vbSI6bnVsbCwicmVjaXBpZW50Ijoic2VpMWRrZHdkdmtueDBxYXY1Y3A1a3c2OG1rbjNyOTltM3N2a3lqZnZrenR3aDk3ZHYybG0wa3NqNnhyYWsiLCJhbW91bnQiOiIxMDAwIiwicmVsYXllciI6InNlaTF2aGttMnF2Nzg0cnVseDh5bHJ1MHpwdnl2dzNtM2N5OXgzeHlmdiIsImZlZSI6IjAifQ==").unwrap())
+        })
+    };
+  
+    let bad_transfer_payload = TransferInfoResponse {
+        amount: 0u32.into(),
+        token_address: [0; 32],
+        token_chain: 0,
+        recipient: [0; 32],
+        recipient_chain: 0,
+        fee: 0u32.into(),
+        payload: hex::decode("7B22676174657761795F7472616E736665725F776974685F7061796C6F6164223A7B22636861696E223A302C22636F6E7472616374223A223256704D575636637A56745A4731334F486436646D4E7A4F585A344F586B335A4774306357646C4D336C36626A52334D477735626A5130222C227061796C6F6164223A225647567A64464268655778765957513D222C226E6F6E6365223A307D7D").unwrap()
+    };
+    CURRENT_TRANSFER
+        .save(deps.as_mut().storage, &bad_transfer_payload)
+        .unwrap();
+
+    // just verifying that we called the convert_cw20_to_bank -- unwrap the result without an error
+    // other tests verify the correctness of this method
+    // wormhole core and token bridge tests verify the correctness of the VAA parameters
+    let err = handle_complete_transfer_reply(deps.as_mut(), env, msg).unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "failed to convert 2VpMWV6czVtZG13OHd6dmNzOXZ4OXk3ZGt0cWdlM3l6bjR3MGw5bjQ0= to utf8 string"
+    );
+}
 
 // Test convert_cw20_to_bank_and_send
 // TESTS: convert_cw20_to_bank
@@ -508,6 +588,85 @@ fn convert_cw20_to_bank_failure_invalid_contract() {
     assert_eq!(
         method_err.to_string(),
         "invalid contract address badContractAddr"
+    );
+}
+
+// 4. Failure: Chain id doesn't have a channel
+#[test]
+fn convert_cw20_to_bank_and_send_chain_id_no_channel() {
+    let mut deps = default_custom_mock_deps();
+    let env = mock_env();
+    let recipient = WORMHOLE_USER_ADDR.to_string();
+    let amount = 1;
+    let contract_addr = WORMHOLE_CONTRACT_ADDR.to_string();
+
+    let tokenfactory_denom =
+        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
+    CW_DENOMS
+        .save(
+            deps.as_mut().storage,
+            contract_addr.clone(),
+            &tokenfactory_denom,
+        )
+        .unwrap();
+
+    let chain_id = Chain::Ethereum;
+
+    let method_err = convert_cw20_to_bank_and_send(
+        deps.as_mut(),
+        env,
+        recipient.clone(),
+        amount.clone(),
+        contract_addr,
+        chain_id.into(),
+        None,
+    )
+    .unwrap_err();
+    
+    assert_eq!(
+        method_err.to_string(),
+        "chain id does not have an allowed channel"
+    );
+
+}
+
+// 5. Failure: bad payload
+#[test]
+fn convert_cw20_to_bank_and_send_bad_payload() {
+    let mut deps = default_custom_mock_deps();
+    let env = mock_env();
+    let recipient = WORMHOLE_USER_ADDR.to_string();
+    let amount = 1;
+    let contract_addr = WORMHOLE_CONTRACT_ADDR.to_string();
+
+    let tokenfactory_denom =
+        "factory/cosmos2contract/3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETDa".to_string();
+    CW_DENOMS
+        .save(
+            deps.as_mut().storage,
+            contract_addr.clone(),
+            &tokenfactory_denom,
+        )
+        .unwrap();
+
+    let chain_id = Chain::Ethereum;
+    let channel = "channel-0".to_string();
+    CHAIN_TO_CHANNEL_MAP.save(deps.as_mut().storage, chain_id.into(), &channel).unwrap();
+
+    let method_err = convert_cw20_to_bank_and_send(
+        deps.as_mut(),
+        env,
+        recipient.clone(),
+        amount.clone(),
+        contract_addr,
+        chain_id.into(),
+        Some(Binary::from_base64("2VpMWV6czVtZG13OHd6dmNzOXZ4OXk3ZGt0cWdlM3l6bjR3MGw5bjQ0").unwrap()),
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        method_err.to_string(),
+        "failed to convert 2VpMWV6czVtZG13OHd6dmNzOXZ4OXk3ZGt0cWdlM3l6bjR3MGw5bjQ0= to utf8 string"
     );
 }
 

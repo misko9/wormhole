@@ -1,19 +1,21 @@
 use ibc_translator::{
     execute::{
-        complete_transfer_and_convert, convert_and_transfer, TransferType, parse_bank_token_factory_contract, contract_addr_from_base58,
+        complete_transfer_and_convert, convert_and_transfer, TransferType, parse_bank_token_factory_contract, 
+        contract_addr_from_base58, submit_update_chain_to_channel_map,
     },
     state::{TOKEN_BRIDGE_CONTRACT, CURRENT_TRANSFER, CW_DENOMS},
     msg::COMPLETE_TRANSFER_REPLY_ID,
 };
 use cosmwasm_std::{
-    coin, to_binary, Binary, Coin, ContractResult, CosmosMsg, ReplyOn, Response, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
+    coin, to_binary, Binary, Coin, ContractResult, CosmosMsg, Empty, Event, QueryResponse, ReplyOn, Response, 
+    SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
     testing::{
         mock_env, mock_info, MOCK_CONTRACT_ADDR,
     },
 };
 
 use cw_token_bridge::msg::{AssetInfo, CompleteTransferResponse, TransferInfoResponse};
-use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
+use wormhole_bindings::{tokenfactory::{TokenFactoryMsg, TokenMsg}, WormholeQuery};
 
 mod test_setup;
 use test_setup::*;
@@ -42,17 +44,16 @@ use test_setup::*;
 // 4. contract_addr_from_base58 (done)
 //    1. happy path (done)
 //    2. failure decode base58 (done)
-// 5. TODO submit_update_chain_to_channel_map
-// TODO    1. happy path
-// TODO   2. failed to parse vaa
-// TODO   3. unsupported VAA version
-// .   4. failed to verify vaa
-// .   5. not a governance vaa
-// .   6. failed to parse governance packet
-// .   7. governance vaa is for another chain
-// .   8. governance vaa already executed
-// .   9. chain is for wormchain
-// .   10. failed to parse channel-id
+// 5. submit_update_chain_to_channel_map
+//    1. happy path
+//    2. failed to parse vaa
+//    3. unsupported VAA version
+//    4. not a governance vaa
+//    5. failed to parse governance packet
+//    6. governance vaa is for another chain
+//    7. governance vaa already executed
+//    8. chain is for wormchain
+//    9. failed to parse channel-id
 
 // TESTS: complete_transfer_and_convert
 // 1. Happy path
@@ -598,5 +599,135 @@ fn contract_addr_from_base58_failure_decode_base58() {
     assert_eq!(
         method_err.to_string(),
         "failed to decode base58 subdenom 3QEQyi7iyJHwQ4wfUMLFPB4kRzczMAXCitWh7h6TETD0"
+    )
+}
+
+// 1. happy path
+#[test]
+fn submit_update_chain_to_channel_map_happy_path() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAs=").unwrap();
+
+    let response = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap();
+
+    // response should have 1 message
+    assert_eq!(response.messages.len(), 0);
+    assert_eq!(response, 
+        Response::new().add_event(
+                Event::new("UpdateChainToChannelMap")
+                    .add_attribute("chain_id", "Karura".to_string())
+                    .add_attribute("channel_id", "channel-1".to_string()),
+            ));
+}
+
+// 2. failed to parse vaa
+#[test]
+fn submit_update_chain_to_channel_map_failure_parse_vaa() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AAAABQCPOJcHa/xtVL9+sHyaS7ZU7HxXsQXEo1hjh17e9YeNyCTZQ0YfhTF+HiKTHcgZWPNixGTxmQ0/1XrUrqRYEeM2AQEy0QKlDBn6ga2gQDHSNdm0ZN2ldmrsJbPo7gTrlHvpFzoWK1CEIpba+CRgVUPlVtzLe8pDOZzlKv/sVkQXcxLjAAJuOPAeDOu8byFDsOAWmFM+aucKJ9IVy0fMNI6HDt/W13cZLEfmSk3r3xB4JZh9LYtJRXbjBs56rtwCfJ/Vm8rXAQNyQgtCXeTx3rvHALgJ2E7AXXg54NZx8zKlLFPa/9gQrBqLhI66oGInMeUrcLgao8iE+3nXtv98Iyn6MTizDHkFAATUdU1kIWPCxCQ4KnrV7M6bCoYfcXiad7Ez0jaXysSmvCxy/HuDHKBxMG2d7gTLKjQ1Va4tb0h8RZKzmiyGCMKrAQAAAAAAAAABAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAOIAAAAAAAAAAAAAAAAAAAAAAAAABJYmNUcmFuc2xhdG9yAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGNoYW5uZWwtMQAL").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "failed to parse VAA header"
+    )
+}
+
+// 3. unsupported VAA version
+#[test]
+fn submit_update_chain_to_channel_map_failure_unsupported_vaa_version() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AAAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAs=").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "unsupported VAA version"
+    )
+}
+
+// 4. not a governance vaa
+#[test]
+fn submit_update_chain_to_channel_map_failure_not_gov_vaa() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAs=").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "not a governance VAA"
+    )
+}
+
+// 5. failed to parse governance packet
+#[test]
+fn submit_update_chain_to_channel_map_failed_parsing_gov_packet() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAsR").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "failed to parse governance packet"
+    )
+}
+
+// 6. governance vaa is for another chain
+#[test]
+fn submit_update_chain_to_channel_map_failure_gov_vaa_for_another_chain() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAs=").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "this governance VAA is for another chain"
+    )
+}
+
+// 7. governance vaa already executed
+#[test]
+fn submit_update_chain_to_channel_map_failure_gov_vaa_already_executed() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xAAs=").unwrap();
+
+    submit_update_chain_to_channel_map(deps.as_mut(), vaa.clone()).unwrap();
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "governance vaa already executed"
+    )
+}
+
+// 8. chain is for wormchain
+#[test]
+fn submit_update_chain_to_channel_map_failure_chain_id_is_wormchain() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lbC0xDCA=").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "the ibc-translator contract should not maintain channel mappings to wormchain"
+    )
+}
+// 9. failed to parse channel-id
+#[test]
+fn submit_update_chain_to_channel_map_invalid_channel_id() {
+    let mut deps = execute_custom_mock_deps();
+    let vaa = Binary::from_base64("AQAAAAAFAI84lwdr/G1Uv36wfJpLtlTsfFexBcSjWGOHXt71h43IJNlDRh+FMX4eIpMdyBlY82LEZPGZDT/VetSupFgR4zYBATLRAqUMGfqBraBAMdI12bRk3aV2auwls+juBOuUe+kXOhYrUIQiltr4JGBVQ+VW3Mt7ykM5nOUq/+xWRBdzEuMAAm448B4M67xvIUOw4BaYUz5q5won0hXLR8w0jocO39bXdxksR+ZKTevfEHglmH0ti0lFduMGznqu3AJ8n9WbytcBA3JCC0Jd5PHeu8cAuAnYTsBdeDng1nHzMqUsU9r/2BCsGouEjrqgYicx5StwuBqjyIT7ede2/3wjKfoxOLMMeQUABNR1TWQhY8LEJDgqetXszpsKhh9xeJp3sTPSNpfKxKa8LHL8e4McoHEwbZ3uBMsqNDVVri1vSHxFkrOaLIYIwqsBAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA4gAAAAAAAAAAAAAAAAAAAAAAAAAEliY1RyYW5zbGF0b3IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY2hhbm5lAC3/AAs=").unwrap();
+
+    let err = submit_update_chain_to_channel_map(deps.as_mut(), vaa).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "failed to parse channel-id as utf-8"
     )
 }

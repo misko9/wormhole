@@ -1,15 +1,18 @@
 //#[cfg(test)]
 //mod test_setup {
 use std::marker::PhantomData;
+use serde::de::DeserializeOwned;
 
 use cosmwasm_std::{
     coin,
     testing::{
-        mock_dependencies, mock_env, mock_info, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
+        mock_dependencies, mock_env, mock_info, BankQuerier, MockStorage, MOCK_CONTRACT_ADDR, MockQuerierCustomHandlerResult,
     },
-    to_binary, to_vec, Addr, Api, BankMsg, Binary, CanonicalAddr, Coin, ContractResult, CosmosMsg,
-    Empty, Env, OwnedDeps, RecoverPubkeyError, Reply, ReplyOn, StdError, StdResult, SubMsgResponse,
+    to_binary, to_vec, Addr, Api, BankMsg, BankQuery, Binary, CanonicalAddr, Coin, ContractResult, CosmosMsg, CustomQuery,
+    Empty, Env, OwnedDeps, QuerierResult, QueryRequest, RecoverPubkeyError, Reply, ReplyOn, StdError, StdResult, SubMsgResponse,
     SystemError, SystemResult, VerificationError, WasmMsg, WasmQuery,
+    Querier,
+    from_slice,
 };
 use wormhole_bindings::WormholeQuery;
 
@@ -183,3 +186,169 @@ pub fn mock_env_custom_contract(contract_addr: impl Into<String>) -> Env {
     return env;
 }
 //}
+
+
+/// MockQuerier holds an immutable table of bank balances
+/// and configurable handlers for Wasm queries and custom queries.
+pub struct MockQuerier<C: DeserializeOwned = Empty> {
+    bank: BankQuerier,
+    #[cfg(feature = "staking")]
+    staking: StakingQuerier,
+    wasm: WasmQuerier,
+    #[cfg(feature = "stargate")]
+    ibc: IbcQuerier,
+    /// A handler to handle custom queries. This is set to a dummy handler that
+    /// always errors by default. Update it via `with_custom_handler`.
+    ///
+    /// Use box to avoid the need of another generic type
+    custom_handler: Box<dyn for<'a> Fn(&'a C) -> MockQuerierCustomHandlerResult>,
+}
+
+impl<C: DeserializeOwned> MockQuerier<C> {
+    pub fn new(balances: &[(&str, &[Coin])]) -> Self {
+        MockQuerier {
+            bank: BankQuerier::new(balances),
+            #[cfg(feature = "staking")]
+            staking: StakingQuerier::default(),
+            wasm: WasmQuerier::default(),
+            #[cfg(feature = "stargate")]
+            ibc: IbcQuerier::default(),
+            // strange argument notation suggested as a workaround here: https://github.com/rust-lang/rust/issues/41078#issuecomment-294296365
+            custom_handler: Box::from(|_: &_| -> MockQuerierCustomHandlerResult {
+                SystemResult::Ok(ContractResult::Ok(Binary::from_base64("e30=").unwrap()))
+            }),
+        }
+    }
+
+    // set a new balance for the given address and return the old balance
+    pub fn update_balance(
+        &mut self,
+        addr: impl Into<String>,
+        balance: Vec<Coin>,
+    ) -> Option<Vec<Coin>> {
+        self.bank.update_balance(addr, balance)
+    }
+
+    #[cfg(feature = "staking")]
+    pub fn update_staking(
+        &mut self,
+        denom: &str,
+        validators: &[crate::query::Validator],
+        delegations: &[crate::query::FullDelegation],
+    ) {
+        self.staking = StakingQuerier::new(denom, validators, delegations);
+    }
+
+    #[cfg(feature = "stargate")]
+    pub fn update_ibc(&mut self, port_id: &str, channels: &[IbcChannel]) {
+        self.ibc = IbcQuerier::new(port_id, channels);
+    }
+
+    pub fn update_wasm<WH: 'static>(&mut self, handler: WH)
+    where
+        WH: Fn(&WasmQuery) -> QuerierResult,
+    {
+        self.wasm.update_handler(handler)
+    }
+
+    pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
+    where
+        CH: Fn(&C) -> MockQuerierCustomHandlerResult,
+    {
+        self.custom_handler = Box::from(handler);
+        self
+    }
+}
+
+impl Default for MockQuerier {
+    fn default() -> Self {
+        MockQuerier::new(&[])
+    }
+}
+
+impl<C: CustomQuery + DeserializeOwned> Querier for MockQuerier<C> {
+    fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
+        let request: QueryRequest<C> = match from_slice(bin_request) {
+            Ok(v) => v,
+            Err(e) => {
+                return SystemResult::Err(SystemError::InvalidRequest {
+                    error: format!("Parsing query request: {}", e),
+                    request: bin_request.into(),
+                })
+            }
+        };
+        self.handle_query(&request)
+    }
+}
+
+impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
+    pub fn handle_query(&self, request: &QueryRequest<C>) -> QuerierResult {
+        match &request {
+            QueryRequest::Bank(bank_query) => self.bank.query(bank_query),
+            QueryRequest::Custom(custom_query) => (*self.custom_handler)(custom_query),
+            #[cfg(feature = "staking")]
+            QueryRequest::Staking(staking_query) => self.staking.query(staking_query),
+            QueryRequest::Wasm(msg) => self.wasm.query(msg),
+            #[cfg(feature = "stargate")]
+            QueryRequest::Stargate { .. } => SystemResult::Err(SystemError::UnsupportedRequest {
+                kind: "Stargate".to_string(),
+            }),
+            #[cfg(feature = "stargate")]
+            QueryRequest::Ibc(msg) => self.ibc.query(msg),
+            //_ => SystemResult::Err(SystemError::UnsupportedRequest {
+            //    kind: "Unknown".to_string(),
+            //}),
+            _ => SystemResult::Ok(ContractResult::Ok(Binary::default()))
+        }
+    }
+}
+
+struct WasmQuerier {
+    /// A handler to handle Wasm queries. This is set to a dummy handler that
+    /// always errors by default. Update it via `with_custom_handler`.
+    ///
+    /// Use box to avoid the need of generic type.
+    handler: Box<dyn for<'a> Fn(&'a WasmQuery) -> QuerierResult>,
+}
+
+impl WasmQuerier {
+    fn new(handler: Box<dyn for<'a> Fn(&'a WasmQuery) -> QuerierResult>) -> Self {
+        Self { handler }
+    }
+
+    fn update_handler<WH: 'static>(&mut self, handler: WH)
+    where
+        WH: Fn(&WasmQuery) -> QuerierResult,
+    {
+        self.handler = Box::from(handler)
+    }
+
+    fn query(&self, request: &WasmQuery) -> QuerierResult {
+        (*self.handler)(request)
+    }
+}
+
+impl Default for WasmQuerier {
+    fn default() -> Self {
+        let handler = Box::from(|request: &WasmQuery| -> QuerierResult {
+            let err = match request {
+                WasmQuery::Smart { contract_addr, .. } => SystemError::NoSuchContract {
+                    addr: contract_addr.clone(),
+                },
+                WasmQuery::Raw { contract_addr, .. } => SystemError::NoSuchContract {
+                    addr: contract_addr.clone(),
+                },
+                WasmQuery::ContractInfo { contract_addr, .. } => SystemError::NoSuchContract {
+                    addr: contract_addr.clone(),
+                },
+                #[cfg(feature = "cosmwasm_1_2")]
+                WasmQuery::CodeInfo { code_id, .. } => {
+                    SystemError::NoSuchCode { code_id: *code_id }
+                },
+                _ => SystemError::Unknown {}
+            };
+            SystemResult::Err(err)
+        });
+        Self::new(handler)
+    }
+}

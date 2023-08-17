@@ -4,13 +4,12 @@ use cosmwasm_std::{
     to_binary, Binary, ContractResult, CosmosMsg, Empty, Event, Reply, ReplyOn, Response,
     SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
 };
+use cw_token_bridge::msg::TransferInfoResponse;
 use ibc_translator::{
     contract::{execute, instantiate, migrate, query, reply},
     msg::{ChannelResponse, ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID},
     state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT},
 };
-
-use cw_token_bridge::msg::TransferInfoResponse;
 use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 mod test_setup;

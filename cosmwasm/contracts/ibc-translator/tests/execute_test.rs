@@ -4,6 +4,7 @@ use cosmwasm_std::{
     to_binary, Binary, Coin, ContractResult, CosmosMsg, Event, ReplyOn, Response, SystemError,
     SystemResult, Uint128, WasmMsg, WasmQuery,
 };
+use cw_token_bridge::msg::TransferInfoResponse;
 use ibc_translator::{
     execute::{
         complete_transfer_and_convert, contract_addr_from_base58, convert_and_transfer,
@@ -12,8 +13,6 @@ use ibc_translator::{
     msg::COMPLETE_TRANSFER_REPLY_ID,
     state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT},
 };
-
-use cw_token_bridge::msg::TransferInfoResponse;
 use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 mod test_setup;
